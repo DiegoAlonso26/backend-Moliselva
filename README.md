@@ -40,6 +40,10 @@ Todos los JSON usan camelCase. Las fechas son locales ISO, los pesos están en k
 | `POST /api/auth/login` | Público | `{token, usuario}` |
 | `GET /api/auth/me` | Cualquiera autenticado | Usuario actual |
 | `GET /api/proveedores` | Los cuatro roles | Proveedores activos |
+| `GET /api/proveedores/{id}` | Los cuatro roles | Detalle de proveedor activo |
+| `POST /api/proveedores` | ADMINISTRADOR, JEFE_PLANTA | Crear proveedor, HTTP 201 |
+| `PUT /api/proveedores/{id}` | ADMINISTRADOR, JEFE_PLANTA | Actualizar proveedor |
+| `DELETE /api/proveedores/{id}` | ADMINISTRADOR, JEFE_PLANTA | Desactivar proveedor, HTTP 204 |
 | `POST /api/recepciones` | OPERARIO, JEFE_PLANTA | Recepción creada, HTTP 201 |
 | `PATCH /api/recepciones/{id}/decision` | JEFE_PLANTA | Acepta o rechaza una PENDIENTE |
 | `GET /api/recepciones?fecha=AAAA-MM-DD` | Los cuatro roles | Recepciones de la fecha; sin fecha usa hoy en Lima |
@@ -54,6 +58,8 @@ Ejemplo de login:
 ```json
 {"usuario":"operario_demo","password":"<clave local de DEMO_PASSWORD>"}
 ```
+
+Para crear o actualizar un proveedor, enviar `{"razonSocial":"Proveedor de maíz SAC","documento":"20123456789","telefono":"987654321"}`. Solo `razonSocial` es obligatorio. El borrado es lógico: el proveedor deja de aparecer en las consultas y no se puede usar en nuevas recepciones, pero las recepciones históricas conservan su referencia. Las modificaciones quedan registradas en la bitácora.
 
 Ejemplo de recepción, **datos de prueba del contrato de la sección 18.4**:
 

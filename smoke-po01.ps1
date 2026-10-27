@@ -67,6 +67,45 @@ if ($OnlyAuth) {
 $anonymous = Call-Api 'GET' '/proveedores' '' $null
 Expect ($anonymous.Status -eq 401 -and $anonymous.Json.codigo -eq 'NO_AUTENTICADO') 'ruta protegida sin token'
 
+$newProvider = Call-Api 'POST' '/proveedores' $admin.token @{
+    razonSocial='PROVEEDOR_CRUD_DE_PRUEBA'; documento='20123456789'; telefono='987654321'
+}
+Expect ($newProvider.Status -eq 201 -and $newProvider.Json.idProveedor -gt 0 -and
+    $newProvider.Json.documento -eq '20123456789') 'administrador crea proveedor'
+$crudId = $newProvider.Json.idProveedor
+$providerDetail = Call-Api 'GET' ("/proveedores/{0}" -f $crudId) $operario.token $null
+Expect ($providerDetail.Status -eq 200 -and $providerDetail.Json.razonSocial -eq 'PROVEEDOR_CRUD_DE_PRUEBA') 'operario consulta proveedor'
+$providerDenied = Call-Api 'PUT' ("/proveedores/{0}" -f $crudId) $contadora.token @{
+    razonSocial='SIN_PERMISO'
+}
+Expect ($providerDenied.Status -eq 403) 'contadora no modifica proveedor'
+$providerUpdated = Call-Api 'PUT' ("/proveedores/{0}" -f $crudId) $jefe.token @{
+    razonSocial='PROVEEDOR_CRUD_ACTUALIZADO'; documento='20123456789'; telefono=''
+}
+Expect ($providerUpdated.Status -eq 200 -and $providerUpdated.Json.razonSocial -eq 'PROVEEDOR_CRUD_ACTUALIZADO' -and
+    $null -eq $providerUpdated.Json.telefono) 'jefe actualiza proveedor'
+$providerList = Call-Api 'GET' '/proveedores' $operario.token $null
+Expect (@($providerList.Json | Where-Object { $_.idProveedor -eq $crudId }).Count -eq 1) 'proveedor actualizado aparece en lista'
+$deleteDenied = Call-Api 'DELETE' ("/proveedores/{0}" -f $crudId) $operario.token $null
+Expect ($deleteDenied.Status -eq 403) 'operario no elimina proveedor'
+$providerDeleted = Call-Api 'DELETE' ("/proveedores/{0}" -f $crudId) $admin.token $null
+Expect ($providerDeleted.Status -eq 204) 'administrador desactiva proveedor'
+$providerMissing = Call-Api 'GET' ("/proveedores/{0}" -f $crudId) $admin.token $null
+Expect ($providerMissing.Status -eq 404 -and $providerMissing.Json.codigo -eq 'PROVEEDOR_NO_ENCONTRADO') 'proveedor desactivado no se consulta'
+$providerList = Call-Api 'GET' '/proveedores' $admin.token $null
+Expect (@($providerList.Json | Where-Object { $_.idProveedor -eq $crudId }).Count -eq 0) 'proveedor desactivado no aparece en lista'
+$inactiveReception = Call-Api 'POST' '/recepciones' $operario.token @{
+    idProveedor=$crudId; pesoBrutoKg=1000; taraKg=200; pesoSacosKg=0;
+    humedadPct=14.2; mermaLimpiezaKg=10
+}
+Expect ($inactiveReception.Status -eq 400 -and $inactiveReception.Json.codigo -eq 'PROVEEDOR_INVALIDO') 'proveedor desactivado no admite nuevas recepciones'
+$providerAudit = Call-Api 'GET' '/bitacora' $admin.token $null
+foreach ($action in @('CREAR_PROVEEDOR','ACTUALIZAR_PROVEEDOR','DESACTIVAR_PROVEEDOR')) {
+    Expect (@($providerAudit.Json | Where-Object { $_.accion -eq ("{0} id={1}" -f $action,$crudId) }).Count -eq 1) "bitácora $action"
+}
+$badProvider = Call-Api 'POST' '/proveedores' $admin.token @{ razonSocial='   ' }
+Expect ($badProvider.Status -eq 400 -and $badProvider.Json.codigo -eq 'DATOS_INVALIDOS') 'razón social obligatoria'
+
 $proveedores = Call-Api 'GET' '/proveedores' $operario.token $null
 Expect ($proveedores.Status -eq 200 -and @($proveedores.Json).Count -ge 1) 'listar proveedores'
 $proveedorId = @($proveedores.Json)[0].idProveedor
