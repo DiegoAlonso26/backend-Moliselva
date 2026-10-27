@@ -8,9 +8,9 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 @OpenAPIDefinition(info = @Info(
-    title = "MoliSelva - API PO-01",
+    title = "MoliSelva - API de gestión",
     version = "0.1.0",
-    description = "Recepcion de maiz, inventario y administracion de usuarios. "
+    description = "Recepción de maíz, maestros, fórmulas, lotes, pedidos, despachos e inventario. "
         + "Ejecuta POST /api/auth/login y copia el token en Authorize para probar las rutas protegidas."))
 @SecurityScheme(name = "bearerAuth", type = SecuritySchemeType.HTTP,
     scheme = "bearer", bearerFormat = "JWT")

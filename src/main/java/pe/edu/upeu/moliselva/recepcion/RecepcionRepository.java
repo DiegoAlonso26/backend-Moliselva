@@ -15,9 +15,9 @@ public class RecepcionRepository {
     public RecepcionRepository(JdbcTemplate db) { this.db=db; }
 
     public record Bloqueo(long idInsumo, BigDecimal pesoNetoKg,
-            BigDecimal mermaLimpiezaKg, String estado) {}
+            BigDecimal mermaLimpiezaKg, String estado, Long idAutoriza) {}
 
-    private static final String DETALLE = "SELECT r.id_recepcion,r.fecha_hora,p.razon_social AS proveedor," +
+    private static final String DETALLE = "SELECT r.id_recepcion,r.fecha_hora,r.id_proveedor,p.razon_social AS proveedor," +
         "r.peso_bruto_kg,r.tara_kg,r.peso_sacos_kg,r.peso_neto_kg,r.humedad_pct," +
         "r.merma_limpieza_kg,r.estado,m.cantidad AS entrada_kardex_kg," +
         "ua.usuario AS autorizado_por " +
@@ -27,7 +27,7 @@ public class RecepcionRepository {
 
     private static final RowMapper<RecepcionDto.Respuesta> MAPPER = (rs,row) ->
         new RecepcionDto.Respuesta(rs.getLong("id_recepcion"),
-            rs.getTimestamp("fecha_hora").toLocalDateTime(),rs.getString("proveedor"),
+            rs.getTimestamp("fecha_hora").toLocalDateTime(),rs.getLong("id_proveedor"),rs.getString("proveedor"),
             rs.getBigDecimal("peso_bruto_kg"),rs.getBigDecimal("tara_kg"),
             rs.getBigDecimal("peso_sacos_kg"),rs.getBigDecimal("peso_neto_kg"),
             rs.getBigDecimal("humedad_pct"),rs.getBigDecimal("merma_limpieza_kg"),
@@ -54,14 +54,29 @@ public class RecepcionRepository {
     }
 
     public Optional<Bloqueo> lock(long id) {
-        return db.query("SELECT id_insumo,peso_neto_kg,merma_limpieza_kg,estado " +
+        return db.query("SELECT id_insumo,peso_neto_kg,merma_limpieza_kg,estado,id_autoriza " +
             "FROM recepcion WHERE id_recepcion=? FOR UPDATE",
             (rs,row) -> new Bloqueo(rs.getLong("id_insumo"),rs.getBigDecimal("peso_neto_kg"),
-                rs.getBigDecimal("merma_limpieza_kg"),rs.getString("estado")),id).stream().findFirst();
+                rs.getBigDecimal("merma_limpieza_kg"),rs.getString("estado"),
+                rs.getObject("id_autoriza",Long.class)),id).stream().findFirst();
     }
 
     public boolean decide(long id, String status, long userId) {
         return db.update("UPDATE recepcion SET estado=?,id_autoriza=? WHERE id_recepcion=? AND estado='PENDIENTE'",
             status,userId,id) == 1;
+    }
+
+    public boolean updateEditable(long id, RecepcionDto.Crear input, String estado) {
+        return db.update("UPDATE recepcion SET id_proveedor=?,peso_bruto_kg=?,tara_kg=?," +
+            "peso_sacos_kg=?,merma_limpieza_kg=?,humedad_pct=?,estado=? " +
+            "WHERE id_recepcion=? AND estado IN ('PENDIENTE','RECHAZADA') AND id_autoriza IS NULL",
+            input.idProveedor(),input.pesoBrutoKg(),input.taraKg(),input.pesoSacosKg(),
+            input.mermaLimpiezaKg(),input.humedadPct(),estado,id) == 1;
+    }
+
+    public boolean deleteEditable(long id) {
+        return db.update("DELETE FROM recepcion WHERE id_recepcion=? " +
+            "AND estado IN ('PENDIENTE','RECHAZADA') AND id_autoriza IS NULL " +
+            "AND NOT EXISTS (SELECT 1 FROM movimiento_inventario WHERE id_recepcion=?)",id,id) == 1;
     }
 }

@@ -10,7 +10,10 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -46,4 +49,25 @@ public class AuthController {
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     @Operation(summary = "Listar usuarios", description = "Solo ADMINISTRADOR.", security = @SecurityRequirement(name = "bearerAuth"))
     public List<AuthDto.Usuario> list() { return service.list(); }
+
+    @GetMapping("/usuarios/{id}")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @Operation(summary = "Consultar usuario", description = "Solo ADMINISTRADOR.", security = @SecurityRequirement(name = "bearerAuth"))
+    public AuthDto.Usuario find(@PathVariable long id) { return service.find(id); }
+
+    @PutMapping("/usuarios/{id}")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @Operation(summary = "Actualizar usuario", description = "Solo ADMINISTRADOR. Omitir password para conservar la clave.", security = @SecurityRequirement(name = "bearerAuth"))
+    public AuthDto.Usuario update(@PathVariable long id, @Valid @RequestBody AuthDto.ActualizarUsuario input,
+            @AuthenticationPrincipal Jwt jwt) {
+        return service.update(id,input,((Number)jwt.getClaim("uid")).longValue());
+    }
+
+    @DeleteMapping("/usuarios/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @Operation(summary = "Desactivar usuario", description = "Solo ADMINISTRADOR. Borrado lógico; no puede desactivarse a sí mismo.", security = @SecurityRequirement(name = "bearerAuth"))
+    public void delete(@PathVariable long id, @AuthenticationPrincipal Jwt jwt) {
+        service.delete(id,((Number)jwt.getClaim("uid")).longValue());
+    }
 }

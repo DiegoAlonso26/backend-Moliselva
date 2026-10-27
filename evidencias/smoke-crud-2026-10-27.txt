@@ -1,0 +1,109 @@
+OK: listar cuatro roles fijos
+OK: consultar rol
+OK: operario no administra roles
+OK: crear usuario
+OK: consultar usuario
+OK: operario no actualiza usuario
+OK: actualizar usuario y rol
+OK: token usa rol actual de BD
+OK: administrador no se desactiva a sí mismo
+OK: desactivar usuario
+OK: token de usuario inactivo queda revocado
+OK: crear cliente
+OK: consultar cliente
+OK: operario no ve datos de clientes
+OK: actualizar cliente
+OK: crear insumo
+OK: consultar insumo
+OK: actualizar insumo
+OK: crear producto
+OK: consultar producto
+OK: actualizar producto
+OK: operario no lee fórmulas
+OK: crear fórmula
+OK: consultar fórmula
+OK: actualizar fórmula
+OK: agregar ingrediente de fórmula
+OK: consultar ingrediente de fórmula
+OK: actualizar ingrediente de fórmula
+OK: crear lote
+OK: consultar lote
+OK: actualizar lote
+OK: fórmula utilizada no se modifica
+OK: agregar insumo al lote
+OK: consultar insumo del lote
+OK: actualizar insumo del lote
+OK: eliminar insumo del lote
+OK: eliminar lote
+OK: eliminar ingrediente de fórmula
+OK: eliminar fórmula
+OK: crear pedido
+OK: consultar pedido
+OK: operario no ve pedidos
+OK: actualizar pedido
+OK: agregar detalle de pedido
+OK: consultar detalle de pedido
+OK: actualizar detalle de pedido
+OK: crear despacho
+OK: consultar despacho
+OK: operario no ve despachos
+OK: actualizar despacho
+OK: agregar detalle de despacho
+OK: consultar detalle de despacho
+OK: actualizar detalle de despacho
+OK: eliminar detalle de despacho
+OK: eliminar despacho borrador
+OK: eliminar detalle de pedido
+OK: eliminar pedido pendiente
+OK: registrar ajuste de inventario
+OK: consultar movimiento
+OK: listar movimientos
+OK: listar stock general
+OK: stock de producto tras ajuste
+OK: producto con stock no se desactiva
+OK: stock negativo rechazado
+OK: cargar stock de insumo para lote
+OK: insumo con stock no se desactiva
+OK: crear fórmula de producción
+OK: crear ingrediente de producción
+OK: planificar lote de producción
+OK: asignar insumo al lote
+OK: iniciar lote
+OK: registrar cantidad real en proceso
+OK: finalizar lote y registrar movimientos
+OK: lote registra una salida y una entrada
+OK: stock de insumo consumido
+OK: lote no se finaliza dos veces
+OK: lote terminado no se elimina
+OK: crear pedido para confirmación
+OK: agregar producto al pedido
+OK: preparar pedido
+OK: crear despacho para confirmar
+OK: agregar producto al despacho
+OK: preparar cantidad de despacho excesiva
+OK: despacho no supera cantidad del pedido
+OK: corregir cantidad de despacho
+OK: crear segundo borrador del pedido
+OK: agregar producto al segundo borrador
+OK: confirmar despacho y registrar salida
+OK: despacho registra una salida
+OK: pedido queda atendido
+OK: despacho no se confirma dos veces
+OK: pedido atendido no se despacha dos veces
+OK: eliminar segundo borrador sin confirmar
+OK: despacho confirmado no se elimina
+OK: compensar stock de producto de prueba
+OK: stock de producto compensado
+OK: crear recepción pendiente
+OK: consultar recepción
+OK: corrección crea entrada al kardex
+OK: recepción con kardex no se elimina
+OK: crear otra recepción pendiente
+OK: eliminar recepción pendiente
+OK: retirar vigencia de fórmula histórica
+OK: desactivar cliente
+OK: desactivar insumo
+OK: desactivar producto
+OK: listar bitácora
+OK: consultar evento de bitácora
+CRUD ampliado verificado.

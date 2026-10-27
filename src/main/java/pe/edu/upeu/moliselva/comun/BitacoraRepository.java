@@ -2,6 +2,7 @@ package pe.edu.upeu.moliselva.comun;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -17,5 +18,10 @@ public class BitacoraRepository {
     public List<Map<String,Object>> recientes() {
         return db.queryForList("SELECT b.id_bitacora,b.fecha_hora,b.accion,b.motivo,u.usuario " +
             "FROM bitacora b JOIN usuario u ON u.id_usuario=b.id_usuario ORDER BY b.id_bitacora DESC LIMIT 200");
+    }
+    public Optional<Map<String,Object>> find(long id) {
+        return db.queryForList("SELECT b.id_bitacora,b.fecha_hora,b.accion,b.motivo,u.usuario " +
+            "FROM bitacora b JOIN usuario u ON u.id_usuario=b.id_usuario WHERE b.id_bitacora=?",id)
+            .stream().findFirst();
     }
 }

@@ -1,10 +1,11 @@
 param([switch]$OnlyAuth)
 # Prueba HTTP de la demo PO-01 sobre datos locales de prueba.
-# Usa DEMO_PASSWORD de backend/.env solo en memoria y nunca lo imprime.
+# Usa DEMO_PASSWORD del .env local o de la carpeta hermana de la BD; nunca lo imprime.
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath (Split-Path -Parent $MyInvocation.MyCommand.Path)
-$line = Get-Content -LiteralPath '.env' -Encoding ASCII | Where-Object { $_.StartsWith('DEMO_PASSWORD=') } | Select-Object -First 1
-if (-not $line) { throw 'Falta DEMO_PASSWORD en backend/.env' }
+$envPath = if (Test-Path '.env') { '.env' } else { '..\SW E3 Base de datos Moliselva\.env' }
+$line = Get-Content -LiteralPath $envPath -Encoding UTF8 | Where-Object { $_.StartsWith('DEMO_PASSWORD=') } | Select-Object -First 1
+if (-not $line) { throw 'Falta DEMO_PASSWORD en el archivo .env local o de la BD' }
 $demoPassword = $line.Substring('DEMO_PASSWORD='.Length)
 $baseUrl = 'http://127.0.0.1:8080/api'
 Add-Type -AssemblyName System.Net.Http

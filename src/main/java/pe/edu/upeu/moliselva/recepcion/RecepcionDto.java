@@ -29,12 +29,12 @@ public final class RecepcionDto {
         @Schema(example="Calidad aprobada tras revision") @NotBlank @Size(max=300) String motivo) {}
 
     public record Respuesta(
-        long idRecepcion, LocalDateTime fechaHora, String proveedor,
+        long idRecepcion, LocalDateTime fechaHora, long idProveedor, String proveedor,
         BigDecimal pesoBrutoKg, BigDecimal taraKg, BigDecimal pesoSacosKg,
         BigDecimal pesoNetoKg, BigDecimal humedadPct, BigDecimal mermaLimpiezaKg,
         String estado, BigDecimal entradaKardexKg, String registradoPor, String autorizadoPor) {
         public Respuesta conRegistradoPor(String usuario) {
-            return new Respuesta(idRecepcion,fechaHora,proveedor,pesoBrutoKg,taraKg,pesoSacosKg,
+            return new Respuesta(idRecepcion,fechaHora,idProveedor,proveedor,pesoBrutoKg,taraKg,pesoSacosKg,
                 pesoNetoKg,humedadPct,mermaLimpiezaKg,estado,entradaKardexKg,usuario,autorizadoPor);
         }
     }

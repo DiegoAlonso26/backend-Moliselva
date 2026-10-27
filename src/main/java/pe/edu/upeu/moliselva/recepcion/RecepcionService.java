@@ -71,6 +71,51 @@ public class RecepcionService {
     @Transactional(readOnly=true)
     public List<RecepcionDto.Respuesta> listar(LocalDate fecha) { return repository.list(fecha); }
 
+    @Transactional(readOnly=true)
+    public RecepcionDto.Respuesta find(long id) { return repository.find(id).orElseThrow(() -> missing()); }
+
+    @Transactional
+    public RecepcionDto.Respuesta actualizar(long id, RecepcionDto.Crear input, long usuarioId) {
+        var locked = repository.lock(id).orElseThrow(() -> missing());
+        editable(locked);
+        if (!proveedores.existeActivo(input.idProveedor())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST,"PROVEEDOR_INVALIDO","Proveedor inexistente o inactivo");
+        }
+        BigDecimal entrada;
+        String estado;
+        try {
+            BigDecimal neto = BusinessRules.pesoNeto(input.pesoBrutoKg(),input.taraKg(),input.pesoSacosKg());
+            entrada = BusinessRules.entradaKardex(neto,input.mermaLimpiezaKg());
+            estado = BusinessRules.estadoRecepcion(input.humedadPct());
+        } catch (IllegalArgumentException ex) {
+            String codigo = ex.getMessage().contains("humedad") ? "HUMEDAD_FUERA_DE_RANGO" : "PESOS_INVALIDOS";
+            throw new ApiException(HttpStatus.BAD_REQUEST,codigo,ex.getMessage());
+        }
+        if (!repository.updateEditable(id,input,estado)) { throw notEditable(); }
+        if (estado.equals("ACEPTADA")) {
+            inventario.registrarEntrada(locked.idInsumo(),id,entrada,usuarioId);
+        }
+        audit.registrar(usuarioId,"ACTUALIZAR_RECEPCION id="+id+" estado="+estado,null);
+        return find(id);
+    }
+
+    @Transactional
+    public void eliminar(long id, long usuarioId) {
+        var locked = repository.lock(id).orElseThrow(() -> missing());
+        editable(locked);
+        if (!repository.deleteEditable(id)) { throw notEditable(); }
+        audit.registrar(usuarioId,"ELIMINAR_RECEPCION id="+id,null);
+    }
+
+    private void editable(RecepcionRepository.Bloqueo row) {
+        if (row.estado().equals("ACEPTADA") || row.idAutoriza() != null) { throw notEditable(); }
+    }
+
+    private ApiException notEditable() {
+        return new ApiException(HttpStatus.CONFLICT,"RECEPCION_NO_EDITABLE",
+            "La recepción aceptada o decidida no se puede modificar ni eliminar");
+    }
+
     private ApiException missing() {
         return new ApiException(HttpStatus.NOT_FOUND,"RECEPCION_NO_ENCONTRADA","La recepción no existe");
     }

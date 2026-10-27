@@ -11,7 +11,7 @@ public class AuthRepository {
     public AuthRepository(JdbcTemplate db) { this.db = db; }
 
     public record UsuarioRow(long id, String nombres, String usuario, String hash, String rol, boolean activo) {
-        public AuthDto.Usuario publicDto() { return new AuthDto.Usuario(id,nombres,usuario,rol); }
+        public AuthDto.Usuario publicDto() { return new AuthDto.Usuario(id,nombres,usuario,rol,activo); }
     }
 
     public Optional<UsuarioRow> findByName(String username) {
@@ -53,9 +53,20 @@ public class AuthRepository {
     }
 
     public List<AuthDto.Usuario> list() {
-        return db.query("SELECT u.id_usuario,u.nombres,u.usuario,r.nombre AS rol FROM usuario u " +
+        return db.query("SELECT u.id_usuario,u.nombres,u.usuario,u.activo,r.nombre AS rol FROM usuario u " +
             "JOIN rol r ON r.id_rol=u.id_rol ORDER BY u.id_usuario",
             (rs,row) -> new AuthDto.Usuario(rs.getLong("id_usuario"),rs.getString("nombres"),
-                rs.getString("usuario"),rs.getString("rol")));
+                rs.getString("usuario"),rs.getString("rol"),rs.getBoolean("activo")));
+    }
+
+    public boolean update(long id, AuthDto.ActualizarUsuario input, String hash) {
+        return db.update("UPDATE usuario SET id_rol=(SELECT id_rol FROM rol WHERE nombre=?)," +
+            "nombres=?,usuario=?,password_hash=COALESCE(?,password_hash) " +
+            "WHERE id_usuario=? AND activo=true",
+            input.rol(),input.nombres().trim(),input.usuario().trim(),hash,id) == 1;
+    }
+
+    public boolean deactivate(long id) {
+        return db.update("UPDATE usuario SET activo=false WHERE id_usuario=? AND activo=true",id) == 1;
     }
 }

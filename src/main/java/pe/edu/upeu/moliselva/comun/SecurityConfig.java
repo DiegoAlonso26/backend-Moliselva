@@ -23,12 +23,15 @@ import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
-import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.oauth2.core.OAuth2Error;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import pe.edu.upeu.moliselva.auth.AuthRepository;
 
 @Configuration
 @EnableMethodSecurity
@@ -57,12 +60,7 @@ public class SecurityConfig {
     PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectMapper json) throws Exception {
-        JwtGrantedAuthoritiesConverter roles = new JwtGrantedAuthoritiesConverter();
-        roles.setAuthoritiesClaimName("roles");
-        roles.setAuthorityPrefix("ROLE_");
-        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
-        converter.setJwtGrantedAuthoritiesConverter(roles);
+    SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectMapper json, AuthRepository users) throws Exception {
         return http.csrf(csrf -> csrf.disable())
             .cors(cors -> {})
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -72,9 +70,20 @@ public class SecurityConfig {
             .exceptionHandling(errors -> errors
                 .authenticationEntryPoint((request,response,ex) -> writeError(json,response,401,"NO_AUTENTICADO","Token ausente o inválido"))
                 .accessDeniedHandler((request,response,ex) -> writeError(json,response,403,"SIN_PERMISO","No tiene permiso para esta acción")))
-            .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.jwtAuthenticationConverter(converter)))
+            .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.jwtAuthenticationConverter(token -> {
+                Object claim = token.getClaim("uid");
+                if (!(claim instanceof Number id)) { throw invalidToken(); }
+                var user = users.findById(id.longValue()).orElseThrow(SecurityConfig::invalidToken);
+                if (!user.activo() || !user.usuario().equals(token.getSubject())) { throw invalidToken(); }
+                return new JwtAuthenticationToken(token,
+                    List.of(new SimpleGrantedAuthority("ROLE_"+user.rol())),user.usuario());
+            })))
             .httpBasic(basic -> basic.disable())
             .build();
+    }
+
+    private static OAuth2AuthenticationException invalidToken() {
+        return new OAuth2AuthenticationException(new OAuth2Error("invalid_token"));
     }
 
     private static void writeError(ObjectMapper json, HttpServletResponse response,

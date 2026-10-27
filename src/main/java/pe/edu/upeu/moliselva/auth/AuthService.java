@@ -13,6 +13,7 @@ import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import pe.edu.upeu.moliselva.comun.ApiException;
 import pe.edu.upeu.moliselva.comun.BitacoraService;
 
@@ -53,14 +54,47 @@ public class AuthService {
             .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED,"NO_AUTENTICADO","Usuario inactivo o inexistente"));
     }
 
+    @Transactional
     public AuthDto.Usuario create(AuthDto.NuevoUsuario input, long adminId) {
         if (!users.roleExists(input.rol())) {
             throw new ApiException(HttpStatus.BAD_REQUEST,"ROL_INVALIDO","Rol no reconocido");
         }
         long id = users.create(input,passwords.encode(input.password()));
         audit.registrar(adminId,"CREAR_USUARIO id="+id,null);
-        return new AuthDto.Usuario(id,input.nombres().trim(),input.usuario().trim(),input.rol());
+        return new AuthDto.Usuario(id,input.nombres().trim(),input.usuario().trim(),input.rol(),true);
     }
 
     public List<AuthDto.Usuario> list() { return users.list(); }
+
+    public AuthDto.Usuario find(long id) {
+        return users.findById(id).map(AuthRepository.UsuarioRow::publicDto)
+            .orElseThrow(() -> missing());
+    }
+
+    @Transactional
+    public AuthDto.Usuario update(long id, AuthDto.ActualizarUsuario input, long adminId) {
+        if (!users.roleExists(input.rol())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST,"ROL_INVALIDO","Rol no reconocido");
+        }
+        if (id == adminId && !"ADMINISTRADOR".equals(input.rol())) {
+            throw new ApiException(HttpStatus.CONFLICT,"ULTIMO_ADMINISTRADOR","No puede quitarse su propio rol de administrador");
+        }
+        String hash = input.password() == null ? null : passwords.encode(input.password());
+        if (!users.update(id,input,hash)) { throw missing(); }
+        audit.registrar(adminId,"ACTUALIZAR_USUARIO id="+id,null);
+        return find(id);
+    }
+
+    @Transactional
+    public void delete(long id, long adminId) {
+        if (id == adminId) {
+            throw new ApiException(HttpStatus.CONFLICT,"ULTIMO_ADMINISTRADOR","No puede desactivar su propia cuenta");
+        }
+        if (!users.deactivate(id)) { throw missing(); }
+        audit.registrar(adminId,"DESACTIVAR_USUARIO id="+id,null);
+    }
+
+    private ApiException missing() {
+        return new ApiException(HttpStatus.NOT_FOUND,"USUARIO_NO_ENCONTRADO","El usuario no existe o está inactivo");
+    }
 }

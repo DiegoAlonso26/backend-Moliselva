@@ -5,6 +5,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.http.HttpStatus;
 
 @Service
 public class BitacoraService {
@@ -19,4 +20,8 @@ public class BitacoraService {
     }
 
     public List<Map<String,Object>> recientes() { return repository.recientes(); }
+    public Map<String,Object> find(long id) {
+        return repository.find(id).orElseThrow(() ->
+            new ApiException(HttpStatus.NOT_FOUND,"EVENTO_NO_ENCONTRADO","El evento no existe"));
+    }
 }
