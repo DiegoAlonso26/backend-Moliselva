@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import pe.edu.upeu.moliselva.recepcion.application.RecepcionFailure;
+import pe.edu.upeu.moliselva.produccion.application.ProduccionFailure;
 
 @RestControllerAdvice
 public class ApiErrors {
@@ -33,6 +34,12 @@ public class ApiErrors {
         };
         return ResponseEntity.status(status)
             .body(Map.of("codigo",ex.reason().name(),"mensaje",ex.getMessage()));
+    }
+
+    @ExceptionHandler(ProduccionFailure.class)
+    public ResponseEntity<Map<String,String>> production(ProduccionFailure ex) {
+        return ResponseEntity.status(ex.status())
+            .body(Map.of("codigo",ex.codigo(),"mensaje",ex.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

@@ -193,6 +193,14 @@ Status (Api 'POST' "/lotes/$lote2Id/insumos" $jefe @{
 $started=Api 'PATCH' "/lotes/$lote2Id/estado" $jefe @{ estado='EN_PROCESO' }
 Check ($started.Status -eq 200 -and $started.Json.estado -eq 'EN_PROCESO') 'iniciar lote'
 Status (Api 'PUT' "/lotes/$lote2Id/insumos/$insumoId" $jefe @{
+    idInsumo=$insumoId; cantidadCalculadaKg=100; cantidadRealKg=101
+}) 200 'registrar consumo superior al stock'
+$sinStock=Api 'POST' "/lotes/$lote2Id/finalizar" $jefe
+Check ($sinStock.Status -eq 409 -and $sinStock.Json.codigo -eq 'STOCK_INSUFICIENTE') 'finalización rechaza stock insuficiente'
+$movimientosFallidos=(Api 'GET' '/inventario/movimientos' $admin).Json | Where-Object { $_.idLote -eq $lote2Id }
+Check (@($movimientosFallidos).Count -eq 0 -and
+    (Api 'GET' "/lotes/$lote2Id" $jefe).Json.estado -eq 'EN_PROCESO') 'finalización fallida no deja movimientos ni cambia estado'
+Status (Api 'PUT' "/lotes/$lote2Id/insumos/$insumoId" $jefe @{
     idInsumo=$insumoId; cantidadCalculadaKg=100; cantidadRealKg=100
 }) 200 'registrar cantidad real en proceso'
 $finished=Api 'POST' "/lotes/$lote2Id/finalizar" $jefe

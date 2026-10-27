@@ -3,10 +3,9 @@ package pe.edu.upeu.moliselva.service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import pe.edu.upeu.moliselva.recepcion.domain.RecepcionPolicy;
+import pe.edu.upeu.moliselva.produccion.domain.LotePolicy;
 
 public final class BusinessRules {
-    private static final BigDecimal CIEN = new BigDecimal("100");
-
     private BusinessRules() {}
 
     public static BigDecimal pesoNeto(BigDecimal bruto, BigDecimal tara, BigDecimal sacos) {
@@ -22,11 +21,7 @@ public final class BusinessRules {
     }
 
     public static BigDecimal kgMacro(int tamanoKg, BigDecimal porcentaje) {
-        if (tamanoKg != 500 && tamanoKg != 1000) throw new IllegalArgumentException("El lote debe ser de 500 o 1000 kg");
-        if (porcentaje.signum() <= 0 || porcentaje.compareTo(CIEN) > 0) {
-            throw new IllegalArgumentException("Porcentaje de macro inválido");
-        }
-        return BigDecimal.valueOf(tamanoKg).multiply(porcentaje).divide(CIEN, 3, RoundingMode.HALF_UP);
+        return LotePolicy.kgMacro(tamanoKg,porcentaje);
     }
 
     public static BigDecimal kgDespacho(int sacos, BigDecimal pesoSacoKg) {

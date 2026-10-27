@@ -1,4 +1,4 @@
-package pe.edu.upeu.moliselva.operaciones;
+package pe.edu.upeu.moliselva.produccion.adapter.in.web;
 
 import java.util.List;
 import java.util.Map;
@@ -20,65 +20,87 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import pe.edu.upeu.moliselva.produccion.application.port.in.CambiarEstadoLoteUseCase;
+import pe.edu.upeu.moliselva.produccion.application.port.in.ConsultarLotesUseCase;
+import pe.edu.upeu.moliselva.produccion.application.port.in.FinalizarLoteUseCase;
+import pe.edu.upeu.moliselva.produccion.application.port.in.GestionarInsumosLoteUseCase;
+import pe.edu.upeu.moliselva.produccion.application.port.in.PlanificarLoteUseCase;
 
 @RestController @RequestMapping("/api/lotes")
 @Tag(name="Lotes y sus insumos",description="Lectura JEFE_PLANTA y OPERARIO; escritura solo JEFE_PLANTA.") @SecurityRequirement(name="bearerAuth")
 @PreAuthorize("hasAnyRole('JEFE_PLANTA','OPERARIO')")
 public class LoteController {
-    private final OperacionService service;
-    public LoteController(OperacionService service) { this.service=service; }
+    private final ConsultarLotesUseCase consultar;
+    private final PlanificarLoteUseCase planificar;
+    private final GestionarInsumosLoteUseCase insumos;
+    private final CambiarEstadoLoteUseCase cambiarEstado;
+    private final FinalizarLoteUseCase finalizar;
+    public LoteController(ConsultarLotesUseCase consultar, PlanificarLoteUseCase planificar,
+            GestionarInsumosLoteUseCase insumos, CambiarEstadoLoteUseCase cambiarEstado,
+            FinalizarLoteUseCase finalizar) {
+        this.consultar=consultar; this.planificar=planificar; this.insumos=insumos;
+        this.cambiarEstado=cambiarEstado; this.finalizar=finalizar;
+    }
     private long uid(Jwt jwt) { return ((Number)jwt.getClaim("uid")).longValue(); }
 
     @GetMapping @Operation(summary="Listar lotes")
-    public List<Map<String,Object>> list() { return service.lotes(); }
+    public List<Map<String,Object>> list() {
+        return consultar.listar().stream().map(LoteView::from).toList();
+    }
     @GetMapping("/{id}") @Operation(summary="Consultar lote")
-    public Map<String,Object> find(@PathVariable long id) { return service.lote(id); }
+    public Map<String,Object> find(@PathVariable long id) { return LoteView.from(consultar.obtener(id)); }
     @PostMapping @ResponseStatus(HttpStatus.CREATED) @PreAuthorize("hasRole('JEFE_PLANTA')")
     @Operation(summary="Planificar lote")
-    public Map<String,Object> create(@Valid @RequestBody OperacionDto.Lote input,
-            @AuthenticationPrincipal Jwt jwt) { return service.crearLote(input,uid(jwt)); }
+    public Map<String,Object> create(@Valid @RequestBody LoteDto.Lote input,
+            @AuthenticationPrincipal Jwt jwt) {
+        return LoteView.from(planificar.crear(input.toDatos(),uid(jwt)));
+    }
     @PutMapping("/{id}") @PreAuthorize("hasRole('JEFE_PLANTA')")
     @Operation(summary="Actualizar lote planificado")
-    public Map<String,Object> update(@PathVariable long id, @Valid @RequestBody OperacionDto.Lote input,
-            @AuthenticationPrincipal Jwt jwt) { return service.actualizarLote(id,input,uid(jwt)); }
+    public Map<String,Object> update(@PathVariable long id, @Valid @RequestBody LoteDto.Lote input,
+            @AuthenticationPrincipal Jwt jwt) {
+        return LoteView.from(planificar.actualizar(id,input.toDatos(),uid(jwt)));
+    }
     @DeleteMapping("/{id}") @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('JEFE_PLANTA')") @Operation(summary="Eliminar lote planificado")
     public void delete(@PathVariable long id, @AuthenticationPrincipal Jwt jwt) {
-        service.eliminarLote(id,uid(jwt));
+        planificar.eliminar(id,uid(jwt));
     }
-
     @PatchMapping("/{id}/estado") @PreAuthorize("hasRole('JEFE_PLANTA')")
     @Operation(summary="Iniciar o anular lote")
     public Map<String,Object> estado(@PathVariable long id,
-            @Valid @RequestBody OperacionDto.EstadoLote input, @AuthenticationPrincipal Jwt jwt) {
-        return service.cambiarEstadoLote(id,input,uid(jwt));
+            @Valid @RequestBody LoteDto.EstadoLote input, @AuthenticationPrincipal Jwt jwt) {
+        return LoteView.from(cambiarEstado.cambiar(id,input.toEstado(),uid(jwt)));
     }
     @PostMapping("/{id}/finalizar") @PreAuthorize("hasRole('JEFE_PLANTA')")
     @Operation(summary="Finalizar lote",description="Descuenta insumos y registra producto terminado en el kardex en una transacción.")
     public Map<String,Object> finalizar(@PathVariable long id, @AuthenticationPrincipal Jwt jwt) {
-        return service.finalizarLote(id,uid(jwt));
+        return LoteView.from(finalizar.finalizar(id,uid(jwt)));
     }
-
     @GetMapping("/{id}/insumos") @Operation(summary="Listar insumos de lote")
-    public List<Map<String,Object>> details(@PathVariable long id) { return service.loteInsumos(id); }
+    public List<Map<String,Object>> details(@PathVariable long id) {
+        return consultar.listarInsumos(id).stream().map(LoteView::from).toList();
+    }
     @GetMapping("/{id}/insumos/{insumoId}") @Operation(summary="Consultar insumo de lote")
     public Map<String,Object> detail(@PathVariable long id, @PathVariable long insumoId) {
-        return service.loteInsumo(id,insumoId);
+        return LoteView.from(consultar.obtenerInsumo(id,insumoId));
     }
     @PostMapping("/{id}/insumos") @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('JEFE_PLANTA')") @Operation(summary="Agregar insumo a lote planificado")
     public Map<String,Object> createDetail(@PathVariable long id,
-            @Valid @RequestBody OperacionDto.LoteInsumo input, @AuthenticationPrincipal Jwt jwt) {
-        return service.crearLoteInsumo(id,input,uid(jwt));
+            @Valid @RequestBody LoteDto.LoteInsumo input, @AuthenticationPrincipal Jwt jwt) {
+        return LoteView.from(insumos.agregar(id,input.toDatos(),uid(jwt)));
     }
     @PutMapping("/{id}/insumos/{insumoId}") @PreAuthorize("hasRole('JEFE_PLANTA')")
     @Operation(summary="Actualizar insumo de lote planificado")
     public Map<String,Object> updateDetail(@PathVariable long id, @PathVariable long insumoId,
-            @Valid @RequestBody OperacionDto.LoteInsumo input, @AuthenticationPrincipal Jwt jwt) {
-        return service.actualizarLoteInsumo(id,insumoId,input,uid(jwt));
+            @Valid @RequestBody LoteDto.LoteInsumo input, @AuthenticationPrincipal Jwt jwt) {
+        return LoteView.from(insumos.actualizar(id,insumoId,input.toDatos(),uid(jwt)));
     }
     @DeleteMapping("/{id}/insumos/{insumoId}") @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('JEFE_PLANTA')") @Operation(summary="Eliminar insumo de lote planificado")
     public void deleteDetail(@PathVariable long id, @PathVariable long insumoId,
-            @AuthenticationPrincipal Jwt jwt) { service.eliminarLoteInsumo(id,insumoId,uid(jwt)); }
+            @AuthenticationPrincipal Jwt jwt) {
+        insumos.eliminar(id,insumoId,uid(jwt));
+    }
 }

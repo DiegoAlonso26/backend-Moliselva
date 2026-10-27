@@ -10,7 +10,13 @@ Java 17, Spring Boot 3, API REST, Spring Security con JWT, JDBC y PostgreSQL 16.
 
 `recepcion/domain` contiene las reglas de peso, merma y humedad y los datos del proceso. `recepcion/application` divide el flujo en cinco casos de uso: registrar, decidir, corregir, eliminar y consultar. Sus interfaces en `port/in` son las operaciones disponibles para la API; las de `port/out` expresan qué necesitan esos casos de uso de recepción, proveedores, inventario y bitácora. `adapter/in/web` convierte HTTP y DTO a esos datos; `adapter/out/jdbc` implementa los puertos de salida con las consultas SQL y los repositorios existentes.
 
-La dirección de dependencias es `web → port/in → application → port/out ← jdbc`. Registrar y decidir mantienen en una sola transacción la recepción, su movimiento de inventario cuando corresponde y la bitácora. Los demás módulos conservan por ahora su estructura actual. Las rutas y los DTO públicos de recepción no cambiaron.
+La dirección de dependencias es `web → port/in → application → port/out ← jdbc`. Registrar y decidir mantienen en una sola transacción la recepción, su movimiento de inventario cuando corresponde y la bitácora. Las rutas y los DTO públicos de recepción no cambiaron.
+
+### Producción por lote: estructura hexagonal
+
+`produccion/domain` define el lote, sus insumos, estados y reglas. `produccion/application` contiene los casos de uso para consultar, planificar, gestionar insumos, cambiar estado y finalizar. Los puertos de salida expresan las operaciones necesarias de lotes, catálogo, inventario y bitácora; `adapter/out/jdbc` las implementa. `adapter/in/web` conserva `/api/lotes` y los DTO de Swagger. `OperacionService` continúa atendiendo fórmulas, pedidos y despachos.
+
+La finalización bloquea el lote y, en una transacción, valida que tenga todos los insumos de la fórmula, descuenta la cantidad real (o la calculada si falta), registra el producto terminado, cambia el estado y escribe la bitácora. Las modificaciones de lotes e insumos bloquean el mismo registro para serializarse con la finalización. Las rutas y los campos JSON públicos no cambiaron.
 
 La única definición de tablas activa es `../SW E3 Base de datos Moliselva/init/001_moliselva.sql` de Rómulo, con el esquema `moliselva`. La actualización `002_po01_merma_bitacora.sql` sirve para bases creadas antes del 26 de octubre; la instalación nueva ya contiene esos cambios. El backend no ejecuta Flyway ni crea tablas paralelas. Se conecta a `jdbc:postgresql://db:5432/moliselva_demo?currentSchema=moliselva` en Compose.
 
@@ -103,7 +109,7 @@ Los errores usan `{"codigo":"...","mensaje":"..."}`. Un token ausente o vencido 
 
 ## Verificación
 
-- `docker compose build` compila Java y ejecuta `BusinessRulesTest`.
+- `docker compose build` compila Java y ejecuta las pruebas unitarias de reglas y casos de uso.
 - `backend/smoke-po01.ps1` prueba por HTTP los cuatro logins, recepción normal, pendiente y rechazada, autorización y duplicado, stock, kardex, exportación y permisos. Usa solo datos de prueba locales y crea registros en la base de la demo.
 - `backend/smoke-crud.ps1` recorre los CRUD de usuarios, clientes, insumos, productos, fórmulas, lotes, pedidos, despachos y sus detalles; prueba corrección de recepción, ajustes de inventario, estados, permisos y revocación de token. Crea datos de prueba y deja los movimientos históricos inmutables.
 - Desde `backend/`, ejecutar `pwsh -NoProfile -File .\smoke-crud.ps1` o `pwsh -NoProfile -File .\smoke-po01.ps1`. Ambos leen `DEMO_PASSWORD` del `.env` local, o del `.env` de la carpeta hermana de la base de datos.

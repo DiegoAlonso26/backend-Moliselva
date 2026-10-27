@@ -5,11 +5,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public final class OperacionDto {
@@ -22,15 +21,6 @@ public final class OperacionDto {
     public record FormulaDetalle(@Schema(example="1") @NotNull @Positive Long idInsumo,
         @NotNull @DecimalMin(value="0",inclusive=false) @DecimalMax("100")
         @Schema(example="25.0000") @Digits(integer=3,fraction=4) BigDecimal proporcionConfidencial) {}
-    public record Lote(@Schema(example="1") @NotNull @Positive Long idProducto,
-        @Schema(example="1") @NotNull @Positive Long idFormula,
-        @Schema(example="500",allowableValues={"500","1000"}) @NotNull @Min(500) Integer tamanoKg) {}
-    public record LoteInsumo(@Schema(example="1") @NotNull @Positive Long idInsumo,
-        @NotNull @DecimalMin(value="0",inclusive=false) @Digits(integer=9,fraction=3)
-        @Schema(example="250") BigDecimal cantidadCalculadaKg,
-        @DecimalMin(value="0",inclusive=false) @Digits(integer=9,fraction=3)
-        @Schema(example="249") BigDecimal cantidadRealKg) {}
-    public record EstadoLote(@Schema(example="EN_PROCESO") @NotBlank @Pattern(regexp="EN_PROCESO|ANULADO") String estado) {}
     public record Pedido(@Schema(example="1") @NotNull @Positive Long idCliente,
         @Schema(example="Pedido de prueba") @Size(max=300) String observacion) {}
     public record EstadoPedido(@Schema(example="EN_PREPARACION") @NotBlank @Pattern(regexp="EN_PREPARACION|CANCELADO") String estado) {}
