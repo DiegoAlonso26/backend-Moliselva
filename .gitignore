@@ -1,0 +1,5 @@
+.env
+target/
+*.log
+.build-bridge/
+build-bridge.ps1

@@ -1,0 +1,38 @@
+# Compose de desarrollo para el puente local. Comparte proyecto y volumen con
+# SW E3 Base de datos Moliselva/docker-compose.yml.
+name: moliselva-demo
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: America/Lima
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../SW E3 Base de datos Moliselva/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+  api:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB}?currentSchema=moliselva
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      DEMO_PASSWORD: ${DEMO_PASSWORD}
+      TZ: America/Lima
+      CORS_ORIGINS: http://localhost:5173
+    ports:
+      - "8080:8080"
+volumes:
+  postgres_data:

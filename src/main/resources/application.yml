@@ -1,0 +1,14 @@
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/moliselva_demo?currentSchema=moliselva}
+    username: ${POSTGRES_USER:moliselva}
+    password: ${POSTGRES_PASSWORD:}
+server:
+  error:
+    include-message: never
+app:
+  jwt:
+    secret: ${JWT_SECRET:}
+    issuer: moliselva-demo
+    ttl-minutes: 60
+  demo-password: ${DEMO_PASSWORD:}
