@@ -18,6 +18,12 @@ La dirección de dependencias es `web → port/in → application → port/out �
 
 La finalización bloquea el lote y, en una transacción, valida que tenga todos los insumos de la fórmula, descuenta la cantidad real (o la calculada si falta), registra el producto terminado, cambia el estado y escribe la bitácora. Las modificaciones de lotes e insumos bloquean el mismo registro para serializarse con la finalización. Las rutas y los campos JSON públicos no cambiaron.
 
+### Pedidos y despachos: estructura hexagonal
+
+`ventas/domain` contiene pedido, despacho, detalles, estados y reglas de entrega. `ventas/application` separa consultas, CRUD, cambios de estado y confirmación; sus puertos describen las operaciones necesarias sobre pedidos, despachos, catálogo y bitácora. `adapter/in/web` conserva `/api/pedidos` y `/api/despachos`, y `adapter/out/jdbc` implementa los puertos. `OperacionService` queda dedicado a fórmulas.
+
+La confirmación bloquea despacho y pedido, comprueba que el pedido admita la operación y que los productos y cantidades del despacho no excedan el pedido. El adaptador JDBC invoca `confirmar_despacho` de la base, que valida el stock, registra las salidas al kardex y actualiza ambos estados. La bitácora participa en la misma transacción. Las rutas y los DTO públicos no cambiaron.
+
 La única definición de tablas activa es `../SW E3 Base de datos Moliselva/init/001_moliselva.sql` de Rómulo, con el esquema `moliselva`. La actualización `002_po01_merma_bitacora.sql` sirve para bases creadas antes del 26 de octubre; la instalación nueva ya contiene esos cambios. El backend no ejecuta Flyway ni crea tablas paralelas. Se conecta a `jdbc:postgresql://db:5432/moliselva_demo?currentSchema=moliselva` en Compose.
 
 El `Dockerfile` construye la aplicación y ejecuta las pruebas de Maven. El Compose principal está en `../SW E3 Base de datos Moliselva/docker-compose.yml`; incluye `db` con healthcheck y `api` con dependencia a la base saludable. `backend/compose.yaml` usa los mismos servicios y volumen para el puente local de compilación.

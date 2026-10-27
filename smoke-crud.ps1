@@ -238,6 +238,20 @@ Status (Api 'POST' "/despachos/$despacho2Id/confirmar" $contadora) 409 'despacho
 Status (Api 'PUT' "/despachos/$despacho2Id/detalles/$productoId" $contadora @{
     idProducto=$productoId; cantidadSacos=1; cantidadKg=40
 }) 200 'corregir cantidad de despacho'
+$stockPrevio=[decimal](Api 'GET' "/inventario/stock/PRODUCTO/$productoId" $admin).Json.stockActual
+$retiroTemporal=$stockPrevio-39
+Status (Api 'POST' '/inventario/movimientos/ajustes' $contadora @{
+    tipoMovimiento='AJUSTE_SALIDA'; idProducto=$productoId; cantidad=$retiroTemporal; motivo='Prueba de confirmación sin stock'
+}) 201 'reducir stock para probar confirmación'
+$sinStockDespacho=Api 'POST' "/despachos/$despacho2Id/confirmar" $contadora
+Check ($sinStockDespacho.Status -eq 409 -and $sinStockDespacho.Json.codigo -eq 'DESPACHO_NO_CONFIRMADO') 'confirmación rechaza stock insuficiente'
+$movimientosDespachoFallido=(Api 'GET' '/inventario/movimientos' $admin).Json | Where-Object { $_.idDespacho -eq $despacho2Id }
+Check (@($movimientosDespachoFallido).Count -eq 0 -and
+    (Api 'GET' "/despachos/$despacho2Id" $admin).Json.estado -eq 'BORRADOR' -and
+    (Api 'GET' "/pedidos/$pedido2Id" $admin).Json.estado -eq 'EN_PREPARACION') 'confirmación fallida no deja movimientos ni cambia estados'
+Status (Api 'POST' '/inventario/movimientos/ajustes' $contadora @{
+    tipoMovimiento='AJUSTE_ENTRADA'; idProducto=$productoId; cantidad=$retiroTemporal; motivo='Restituir stock de prueba'
+}) 201 'restituir stock para confirmar'
 $despacho3=Api 'POST' '/despachos' $jefe @{
     idPedido=$pedido2Id; tipoEntrega='RECOJO_PLANTA'
 }
