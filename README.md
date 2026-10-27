@@ -6,6 +6,12 @@ Backend de la demo de **PO-01 Recepción y acondicionamiento de maíz** y su kar
 
 Java 17, Spring Boot 3, API REST, Spring Security con JWT, JDBC y PostgreSQL 16. El código está dividido en `auth`, `proveedor`, `maestros`, `recepcion`, `operaciones`, `inventario` y `comun`. La recepción y su entrada al kardex, la finalización de un lote y la confirmación de un despacho se ejecutan cada una en **una transacción**.
 
+### Recepción: estructura hexagonal
+
+`recepcion/domain` contiene las reglas de peso, merma y humedad y los datos del proceso. `recepcion/application` divide el flujo en cinco casos de uso: registrar, decidir, corregir, eliminar y consultar. Sus interfaces en `port/in` son las operaciones disponibles para la API; las de `port/out` expresan qué necesitan esos casos de uso de recepción, proveedores, inventario y bitácora. `adapter/in/web` convierte HTTP y DTO a esos datos; `adapter/out/jdbc` implementa los puertos de salida con las consultas SQL y los repositorios existentes.
+
+La dirección de dependencias es `web → port/in → application → port/out ← jdbc`. Registrar y decidir mantienen en una sola transacción la recepción, su movimiento de inventario cuando corresponde y la bitácora. Los demás módulos conservan por ahora su estructura actual. Las rutas y los DTO públicos de recepción no cambiaron.
+
 La única definición de tablas activa es `../SW E3 Base de datos Moliselva/init/001_moliselva.sql` de Rómulo, con el esquema `moliselva`. La actualización `002_po01_merma_bitacora.sql` sirve para bases creadas antes del 26 de octubre; la instalación nueva ya contiene esos cambios. El backend no ejecuta Flyway ni crea tablas paralelas. Se conecta a `jdbc:postgresql://db:5432/moliselva_demo?currentSchema=moliselva` en Compose.
 
 El `Dockerfile` construye la aplicación y ejecuta las pruebas de Maven. El Compose principal está en `../SW E3 Base de datos Moliselva/docker-compose.yml`; incluye `db` con healthcheck y `api` con dependencia a la base saludable. `backend/compose.yaml` usa los mismos servicios y volumen para el puente local de compilación.

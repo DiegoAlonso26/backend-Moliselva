@@ -2,33 +2,23 @@ package pe.edu.upeu.moliselva.service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import pe.edu.upeu.moliselva.recepcion.domain.RecepcionPolicy;
 
 public final class BusinessRules {
-    private static final BigDecimal HUMEDAD_NORMAL = new BigDecimal("14.5");
-    private static final BigDecimal HUMEDAD_AUTORIZABLE = new BigDecimal("15");
     private static final BigDecimal CIEN = new BigDecimal("100");
 
     private BusinessRules() {}
 
     public static BigDecimal pesoNeto(BigDecimal bruto, BigDecimal tara, BigDecimal sacos) {
-        BigDecimal neto = bruto.subtract(tara).subtract(sacos).setScale(2, RoundingMode.HALF_UP);
-        if (neto.signum() <= 0) throw new IllegalArgumentException("El peso neto debe ser positivo");
-        return neto;
+        return RecepcionPolicy.pesoNeto(bruto,tara,sacos);
     }
 
     public static String estadoRecepcion(BigDecimal humedad) {
-        if (humedad.signum() < 0 || humedad.compareTo(CIEN) > 0) {
-            throw new IllegalArgumentException("La humedad debe estar entre 0 y 100");
-        }
-        if (humedad.compareTo(HUMEDAD_AUTORIZABLE) > 0) return "RECHAZADA";
-        return humedad.compareTo(HUMEDAD_NORMAL) > 0 ? "PENDIENTE" : "ACEPTADA";
+        return RecepcionPolicy.estadoRecepcion(humedad).name();
     }
 
     public static BigDecimal entradaKardex(BigDecimal neto, BigDecimal mermaLimpieza) {
-        if (mermaLimpieza.signum() < 0 || mermaLimpieza.compareTo(neto) >= 0) {
-            throw new IllegalArgumentException("La merma de limpieza debe ser menor que el peso neto");
-        }
-        return neto.subtract(mermaLimpieza).setScale(3, RoundingMode.HALF_UP);
+        return RecepcionPolicy.entradaKardex(neto,mermaLimpieza);
     }
 
     public static BigDecimal kgMacro(int tamanoKg, BigDecimal porcentaje) {
