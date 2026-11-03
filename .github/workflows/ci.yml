@@ -1,0 +1,80 @@
+name: Integración continua
+
+on:
+  push:
+    branches: [main, elias]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detectar:
+    name: Detectar frontend
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.archivos.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Comprobar manifiesto del frontend
+        id: archivos
+        env:
+          EXISTE_FRONTEND: ${{ hashFiles('frontend/package.json') != '' }}
+        run: echo "frontend=$EXISTE_FRONTEND" >> "$GITHUB_OUTPUT"
+
+  backend:
+    runs-on: ubuntu-latest
+    env:
+      TZ: America/Lima
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - name: Ejecutar pruebas y empaquetar backend
+        run: mvn -B verify
+      - name: Publicar reportes de pruebas
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reportes-backend
+          path: target/surefire-reports
+          if-no-files-found: warn
+
+  frontend:
+    needs: detectar
+    if: needs.detectar.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Instalar dependencias
+        run: npm ci
+      - name: Ejecutar pruebas del frontend
+        run: npm test
+      - name: Compilar frontend
+        run: npm run build
+
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validar configuración de Compose
+        run: |
+          cp .env.example .env
+          docker compose config -q

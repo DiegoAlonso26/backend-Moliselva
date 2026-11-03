@@ -27,7 +27,9 @@ import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -61,6 +63,10 @@ public class SecurityConfig {
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectMapper json, AuthRepository users) throws Exception {
+        AuthenticationEntryPoint noAutenticado = (request,response,ex) ->
+            writeError(json,response,401,"NO_AUTENTICADO","Token ausente o inválido");
+        AccessDeniedHandler sinPermiso = (request,response,ex) ->
+            writeError(json,response,403,"SIN_PERMISO","No tiene permiso para esta acción");
         return http.csrf(csrf -> csrf.disable())
             .cors(cors -> {})
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -68,16 +74,19 @@ public class SecurityConfig {
                     "/api/auth/login", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 .anyRequest().authenticated())
             .exceptionHandling(errors -> errors
-                .authenticationEntryPoint((request,response,ex) -> writeError(json,response,401,"NO_AUTENTICADO","Token ausente o inválido"))
-                .accessDeniedHandler((request,response,ex) -> writeError(json,response,403,"SIN_PERMISO","No tiene permiso para esta acción")))
-            .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.jwtAuthenticationConverter(token -> {
-                Object claim = token.getClaim("uid");
-                if (!(claim instanceof Number id)) { throw invalidToken(); }
-                var user = users.findById(id.longValue()).orElseThrow(SecurityConfig::invalidToken);
-                if (!user.activo() || !user.usuario().equals(token.getSubject())) { throw invalidToken(); }
-                return new JwtAuthenticationToken(token,
-                    List.of(new SimpleGrantedAuthority("ROLE_"+user.rol())),user.usuario());
-            })))
+                .authenticationEntryPoint(noAutenticado)
+                .accessDeniedHandler(sinPermiso))
+            .oauth2ResourceServer(oauth -> oauth
+                .authenticationEntryPoint(noAutenticado)
+                .accessDeniedHandler(sinPermiso)
+                .jwt(jwt -> jwt.jwtAuthenticationConverter(token -> {
+                    Object claim = token.getClaim("uid");
+                    if (!(claim instanceof Number id)) { throw invalidToken(); }
+                    var user = users.findById(id.longValue()).orElseThrow(SecurityConfig::invalidToken);
+                    if (!user.activo() || !user.usuario().equals(token.getSubject())) { throw invalidToken(); }
+                    return new JwtAuthenticationToken(token,
+                        List.of(new SimpleGrantedAuthority("ROLE_"+user.rol())),user.usuario());
+                })))
             .httpBasic(basic -> basic.disable())
             .build();
     }
