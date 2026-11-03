@@ -1,3 +1,5 @@
+[![Integración continua](https://github.com/DiegoAlonso26/backend-Moliselva/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/DiegoAlonso26/backend-Moliselva/actions/workflows/ci.yml)
+
 # SW E3 Aplicación Empresarial Moliselva — backend
 
 Backend de la demo de **PO-01 Recepción y acondicionamiento de maíz** y su kardex, según `CONTEXTO_MOLISELVA.md`, sección 18. Corresponde a la tarea 10 (CE0231–CE0233). También expone API para maestros, fórmulas, lotes, pedidos y despachos; esos módulos son extensiones que no forman parte del escenario mínimo de la demo.
@@ -115,6 +117,11 @@ Los errores usan `{"codigo":"...","mensaje":"..."}`. Un token ausente o vencido 
 
 ## Verificación
 
+- `mvn -B verify` ejecuta las pruebas de reglas, casos de uso y seguridad HTTP sin conexión a PostgreSQL. Las pruebas de seguridad usan JWT ficticios y colaboradores simulados.
+- En `frontend/`, `npm ci`, `npm test` y `npm run build` verifican la interfaz de Elías con Node 20. Para abrirla localmente, ejecutar `npm run dev` con la API iniciada; consultar `frontend/README.md`.
+- `.github/workflows/ci.yml` ejecuta estas verificaciones en los PR hacia `main`, los push a `main` y `elias`, o manualmente. Publica `target/surefire-reports` incluso si el backend falla; el trabajo del frontend depende de la presencia de su manifiesto.
+- El trabajo `compose` usa `.env.example` para validar la configuración con `docker compose config -q`. No comprueba un despliegue: los scripts de inicialización de PostgreSQL siguen en la carpeta hermana de la tarea 9.
+- Los resultados y las diferencias detectadas respecto a la guía de la tarea 13 se documentan en [la evidencia de pruebas](evidencias/pruebas-2026-11-03.md).
 - `docker compose build` compila Java y ejecuta las pruebas unitarias de reglas y casos de uso.
 - `backend/smoke-po01.ps1` prueba por HTTP los cuatro logins, recepción normal, pendiente y rechazada, autorización y duplicado, stock, kardex, exportación y permisos. Usa solo datos de prueba locales y crea registros en la base de la demo.
 - `backend/smoke-crud.ps1` recorre los CRUD de usuarios, clientes, insumos, productos, fórmulas, lotes, pedidos, despachos y sus detalles; prueba corrección de recepción, ajustes de inventario, estados, permisos y revocación de token. Crea datos de prueba y deja los movimientos históricos inmutables.
