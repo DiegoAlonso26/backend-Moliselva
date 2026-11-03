@@ -1,0 +1,50 @@
+OK: login operario_demo
+OK: login jefe_demo
+OK: login contadora_demo
+OK: login admin_demo
+OK: roles de la BD
+OK: ruta protegida sin token
+OK: administrador crea proveedor
+OK: operario consulta proveedor
+OK: contadora no modifica proveedor
+OK: jefe actualiza proveedor
+OK: proveedor actualizado aparece en lista
+OK: operario no elimina proveedor
+OK: administrador desactiva proveedor
+OK: proveedor desactivado no se consulta
+OK: proveedor desactivado no aparece en lista
+OK: proveedor desactivado no admite nuevas recepciones
+OK: bitácora CREAR_PROVEEDOR
+OK: bitácora ACTUALIZAR_PROVEEDOR
+OK: bitácora DESACTIVAR_PROVEEDOR
+OK: razón social obligatoria
+OK: listar proveedores
+OK: fecha inválida devuelve JSON estándar
+OK: sacos y merma deben enviarse, incluso si valen cero
+OK: administrador no registra recepción
+OK: contadora no registra recepción
+OK: humedad inválida devuelve código claro
+OK: peso neto no positivo
+OK: merma no menor al neto
+OK: recepción normal y merma
+OK: entrada automática al kardex
+OK: humedad excepcional pendiente
+OK: pendiente no altera stock
+OK: operario no puede decidir
+OK: motivo obligatorio
+OK: jefe acepta con motivo
+OK: decisión genera una sola entrada
+OK: segunda decisión rechazada (HTTP 409, código RECEPCION_NO_PENDIENTE)
+OK: jefe rechaza pendiente con motivo
+OK: rechazo del jefe no altera stock
+OK: humedad mayor a 15 rechazada
+OK: rechazo no altera stock
+OK: kardex consultable
+OK: una entrada por recepción aceptada
+OK: rechazo del jefe sin entrada
+OK: operario no puede exportar
+OK: contadora exporta CSV
+OK: CORS expone Content-Disposition al frontend
+OK: recepciones del día
+OK: bitácora disponible
+PO-01: flujo completo verificado.

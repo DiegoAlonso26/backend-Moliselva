@@ -6,7 +6,8 @@ Los documentos Word y las capturas de entrega se conservan en la rama original.
 
 ## Ejecutar
 
-Requisitos: Node 20 y npm. Desde `frontend/`:
+Requisitos: Node 20.19 o posterior de la rama 20, o Node 22.12 o posterior, y npm.
+Desde `frontend/`:
 
 ```powershell
 npm ci
@@ -27,7 +28,14 @@ El modo simulado se habilita con `VITE_USAR_MOCKS=true` y usa datos de prueba.
 ```powershell
 npm test
 npm run build
+npm run audit:security
 ```
 
-GitHub Actions ejecuta ambos comandos después de instalar las dependencias con
-`npm ci`. Las pruebas existentes de Elías se conservan sin modificaciones.
+GitHub Actions ejecuta las pruebas, la compilación y la auditoría después de
+instalar las dependencias con `npm ci`. Las pruebas existentes de Elías se
+conservan y se agregan tres comprobaciones de navegación para validar la
+actualización de React Router.
+
+La auditoría bloquea vulnerabilidades moderadas, altas y críticas. Los avisos
+bajos pendientes y las versiones fijadas se explican en
+[DEPENDENCIAS.md](DEPENDENCIAS.md).
