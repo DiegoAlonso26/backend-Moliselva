@@ -78,10 +78,12 @@ public class LoteController {
         return LoteView.from(finalizar.finalizar(id,uid(jwt)));
     }
     @GetMapping("/{id}/insumos") @Operation(summary="Listar insumos de lote")
+    @PreAuthorize("hasRole('JEFE_PLANTA')")
     public List<Map<String,Object>> details(@PathVariable long id) {
         return consultar.listarInsumos(id).stream().map(LoteView::from).toList();
     }
     @GetMapping("/{id}/insumos/{insumoId}") @Operation(summary="Consultar insumo de lote")
+    @PreAuthorize("hasRole('JEFE_PLANTA')")
     public Map<String,Object> detail(@PathVariable long id, @PathVariable long insumoId) {
         return LoteView.from(consultar.obtenerInsumo(id,insumoId));
     }

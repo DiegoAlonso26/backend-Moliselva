@@ -31,6 +31,13 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.json.JsonCompareMode;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
+import pe.edu.upeu.moliselva.produccion.adapter.in.web.LoteController;
+import pe.edu.upeu.moliselva.produccion.application.port.in.ConsultarLotesUseCase;
+import pe.edu.upeu.moliselva.produccion.application.port.in.PlanificarLoteUseCase;
+import pe.edu.upeu.moliselva.produccion.application.port.in.GestionarInsumosLoteUseCase;
+import pe.edu.upeu.moliselva.produccion.application.port.in.CambiarEstadoLoteUseCase;
+import pe.edu.upeu.moliselva.produccion.application.port.in.FinalizarLoteUseCase;
+import pe.edu.upeu.moliselva.produccion.domain.LoteInsumo;
 import pe.edu.upeu.moliselva.auth.AuthController;
 import pe.edu.upeu.moliselva.auth.AuthDto;
 import pe.edu.upeu.moliselva.auth.AuthRepository;
@@ -53,7 +60,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(controllers = {RecepcionController.class, InventarioController.class,
-    BitacoraController.class, AuthController.class}, properties = {
+    BitacoraController.class, AuthController.class, LoteController.class}, properties = {
         "app.jwt.secret=secreto-ficticio-exclusivo-de-pruebas-po01-2026",
         "app.jwt.issuer=moliselva-demo"
     })
@@ -79,6 +86,12 @@ class Po01SecurityTest {
     @MockitoBean ConsultarRecepcionUseCase consultar;
     @MockitoBean InventarioService inventario;
     @MockitoBean BitacoraService bitacora;
+
+    @MockitoBean ConsultarLotesUseCase consultarLotes;
+    @MockitoBean PlanificarLoteUseCase planificarLotes;
+    @MockitoBean GestionarInsumosLoteUseCase insumosLotes;
+    @MockitoBean CambiarEstadoLoteUseCase estadoLotes;
+    @MockitoBean FinalizarLoteUseCase finalizarLotes;
 
     enum TokenInvalido { FIRMA_INCORRECTA, VENCIDO, USUARIO_INEXISTENTE, USUARIO_INACTIVO, SUJETO_DISTINTO }
 
@@ -198,6 +211,38 @@ class Po01SecurityTest {
             .andExpect(status().isOk()).andExpect(jsonPath("$.usuario.usuario").value("usuario_prueba"));
         verify(autenticacion).login(entrada);
         verifyNoInteractions(usuarios);
+    }
+
+    static Stream<Arguments> accesoComposicionLote() {
+        return Stream.of("ADMINISTRADOR","JEFE_PLANTA","OPERARIO","CONTADORA")
+            .flatMap(rol -> Stream.of("/api/lotes/11/insumos","/api/lotes/11/insumos/4")
+                .map(ruta -> Arguments.of(rol,ruta)));
+    }
+
+    @ParameterizedTest(name = "Composición: {0} {1}")
+    @MethodSource("accesoComposicionLote")
+    void soloJefePuedeConsultarComposicionDeLote(String rol, String ruta) throws Exception {
+        when(usuarios.findById(7)).thenReturn(Optional.of(usuario(rol,true)));
+        when(consultarLotes.listarInsumos(11)).thenReturn(List.of());
+        when(consultarLotes.obtenerInsumo(11,4)).thenReturn(new LoteInsumo(11,4,BigDecimal.ONE,null));
+        var resultado = mvc.perform(get(ruta).header(HttpHeaders.AUTHORIZATION,
+            "Bearer "+token(encoder,"usuario_prueba",Instant.now().plusSeconds(300))));
+        if (rol.equals("JEFE_PLANTA")) resultado.andExpect(status().isOk());
+        else {
+            resultado.andExpect(status().isForbidden()).andExpect(jsonPath("$.codigo").value("SIN_PERMISO"));
+            verifyNoInteractions(consultarLotes);
+        }
+    }
+
+    @Test
+    void operarioConservaConsultaDelResumenDeLotes() throws Exception {
+        when(usuarios.findById(7)).thenReturn(Optional.of(usuario("OPERARIO",true)));
+        when(consultarLotes.listar()).thenReturn(List.of());
+        mvc.perform(get("/api/lotes").header(HttpHeaders.AUTHORIZATION,
+            "Bearer "+token(encoder,"usuario_prueba",Instant.now().plusSeconds(300))))
+            .andExpect(status().isOk());
+        verify(consultarLotes).listar();
+        verify(consultarLotes,never()).listarInsumos(anyLong());
     }
 
     private static AuthRepository.UsuarioRow usuario(String rol, boolean activo) {
