@@ -22,8 +22,9 @@ public class JdbcRecepcionAdapter implements RecepcionPort {
     private static final String DETALLE = "SELECT r.id_recepcion,r.fecha_hora,r.id_proveedor,p.razon_social AS proveedor," +
         "r.peso_bruto_kg,r.tara_kg,r.peso_sacos_kg,r.peso_neto_kg,r.humedad_pct," +
         "r.merma_limpieza_kg,r.estado,m.cantidad AS entrada_kardex_kg," +
-        "ua.usuario AS autorizado_por " +
+        "ur.usuario AS registrado_por,ua.usuario AS autorizado_por " +
         "FROM recepcion r JOIN proveedor p ON p.id_proveedor=r.id_proveedor " +
+        "LEFT JOIN usuario ur ON ur.id_usuario=r.id_registra " +
         "LEFT JOIN usuario ua ON ua.id_usuario=r.id_autoriza " +
         "LEFT JOIN movimiento_inventario m ON m.id_recepcion=r.id_recepcion AND m.tipo_movimiento='ENTRADA' ";
 
@@ -33,15 +34,15 @@ public class JdbcRecepcionAdapter implements RecepcionPort {
             rs.getBigDecimal("peso_bruto_kg"),rs.getBigDecimal("tara_kg"),
             rs.getBigDecimal("peso_sacos_kg"),rs.getBigDecimal("peso_neto_kg"),
             rs.getBigDecimal("humedad_pct"),rs.getBigDecimal("merma_limpieza_kg"),
-            EstadoRecepcion.valueOf(rs.getString("estado")),rs.getBigDecimal("entrada_kardex_kg"),null,
+            EstadoRecepcion.valueOf(rs.getString("estado")),rs.getBigDecimal("entrada_kardex_kg"),rs.getString("registrado_por"),
             rs.getString("autorizado_por"));
 
     @Override
-    public long insertar(RecepcionDatos datos, long idInsumo, EstadoRecepcion estado) {
+    public long insertar(RecepcionDatos datos, long idInsumo, EstadoRecepcion estado, long idRegistra) {
         Long id = db.queryForObject("INSERT INTO recepcion(id_proveedor,id_insumo,peso_bruto_kg,tara_kg," +
-            "peso_sacos_kg,merma_limpieza_kg,humedad_pct,estado) VALUES (?,?,?,?,?,?,?,?) RETURNING id_recepcion",
+            "peso_sacos_kg,merma_limpieza_kg,humedad_pct,estado,id_registra) VALUES (?,?,?,?,?,?,?,?,?) RETURNING id_recepcion",
             Long.class,datos.idProveedor(),idInsumo,datos.pesoBrutoKg(),datos.taraKg(),datos.pesoSacosKg(),
-            datos.mermaLimpiezaKg(),datos.humedadPct(),estado.name());
+            datos.mermaLimpiezaKg(),datos.humedadPct(),estado.name(),idRegistra);
         return id;
     }
 

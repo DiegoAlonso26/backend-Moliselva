@@ -9,7 +9,7 @@ import pe.edu.upeu.moliselva.recepcion.domain.RecepcionBloqueo;
 import pe.edu.upeu.moliselva.recepcion.domain.RecepcionDatos;
 
 public interface RecepcionPort {
-    long insertar(RecepcionDatos datos, long idInsumo, EstadoRecepcion estado);
+    long insertar(RecepcionDatos datos, long idInsumo, EstadoRecepcion estado, long idRegistra);
     Optional<Recepcion> buscar(long id);
     List<Recepcion> listar(LocalDate fecha);
     Optional<RecepcionBloqueo> bloquear(long id);

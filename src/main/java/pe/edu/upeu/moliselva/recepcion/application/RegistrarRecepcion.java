@@ -30,7 +30,7 @@ public class RegistrarRecepcion implements RegistrarRecepcionUseCase {
         RecepcionChecks.proveedorActivo(proveedores,datos.idProveedor());
         long idMaiz=RecepcionChecks.maizId(inventario);
         var evaluacion=RecepcionChecks.evaluar(datos);
-        long id=recepciones.insertar(datos,idMaiz,evaluacion.estado());
+        long id=recepciones.insertar(datos,idMaiz,evaluacion.estado(),actor.id());
         if (evaluacion.estado()==EstadoRecepcion.ACEPTADA) {
             inventario.registrarEntrada(idMaiz,id,evaluacion.entradaKardexKg(),actor.id());
         }
