@@ -1,11 +1,12 @@
 param([switch]$OnlyAuth)
 # Prueba HTTP de la demo PO-01 sobre datos locales de prueba.
-# Usa DEMO_PASSWORD del .env local o de la carpeta hermana de la BD; nunca lo imprime.
+# Usa DEMO_PASSWORD del .env local de la raíz del repositorio; nunca lo imprime.
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath (Split-Path -Parent $MyInvocation.MyCommand.Path)
-$envPath = if (Test-Path '.env') { '.env' } else { '..\SW E3 Base de datos Moliselva\.env' }
+$envPath = '.env'
+if (-not (Test-Path -LiteralPath $envPath)) { throw 'Falta .env en la raíz del repositorio (copiar .env.example)' }
 $line = Get-Content -LiteralPath $envPath -Encoding UTF8 | Where-Object { $_.StartsWith('DEMO_PASSWORD=') } | Select-Object -First 1
-if (-not $line) { throw 'Falta DEMO_PASSWORD en el archivo .env local o de la BD' }
+if (-not $line) { throw 'Falta DEMO_PASSWORD en el archivo .env local' }
 $demoPassword = $line.Substring('DEMO_PASSWORD='.Length)
 $baseUrl = 'http://127.0.0.1:8080/api'
 Add-Type -AssemblyName System.Net.Http
@@ -211,6 +212,11 @@ Expect ($export.AllowedOrigin -eq 'http://localhost:5173' -and
 $today = (Get-Date).ToString('yyyy-MM-dd')
 $list = Call-Api 'GET' ("/recepciones?fecha={0}" -f $today) $contadora.token $null
 Expect ($list.Status -eq 200 -and @($list.Json).Count -ge 4) 'recepciones del día'
+$listed = @($list.Json | Where-Object { $_.idRecepcion -eq $normal.Json.idRecepcion })
+Expect ($listed.Count -eq 1 -and $listed[0].registradoPor -eq 'operario_demo') 'listado muestra registradoPor = operario_demo (id_registra)'
+$detail = Call-Api 'GET' ("/recepciones/{0}" -f $pending.Json.idRecepcion) $contadora.token $null
+Expect ($detail.Status -eq 200 -and $detail.Json.registradoPor -eq 'operario_demo' -and
+    $detail.Json.autorizadoPor -eq 'jefe_demo') 'detalle separa registradoPor y autorizadoPor'
 $audit = Call-Api 'GET' '/bitacora' $admin.token $null
 Expect ($audit.Status -eq 200 -and @($audit.Json).Count -ge 1) 'bitácora disponible'
 Write-Host 'PO-01: flujo completo verificado.'
