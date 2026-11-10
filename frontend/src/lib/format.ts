@@ -54,16 +54,8 @@ export function formatSacos(value: number): string {
   return `${numberFormatter.format(value)} ${value === 1 ? 'saco' : 'sacos'}`
 }
 
-const userAliases: Record<string, string> = {
-  admin_demo: 'Lucía Mendoza',
-  jefe_demo: 'María Quispe',
-  operario_demo: 'Carlos Ríos',
-  contadora_demo: 'Ana Torres',
-}
-
 export function displayUser(value: string | null | undefined): string {
-  if (!value) return '—'
-  return userAliases[value] ?? value
+  return value || 'No disponible'
 }
 
 export function humidityBand(value: number): 'ok' | 'review' | 'reject' {

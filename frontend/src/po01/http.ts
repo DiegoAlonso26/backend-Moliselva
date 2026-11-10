@@ -9,45 +9,7 @@ import type {
   StockMaiz,
 } from './types'
 
-const API_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api'
-const SESSION_KEY = 'moliselva_session'
-
-function token(): string | null {
-  const raw = window.sessionStorage.getItem(SESSION_KEY)
-  if (!raw) return null
-  try {
-    return (JSON.parse(raw) as Po01Session).token ?? null
-  } catch {
-    return null
-  }
-}
-
-async function request<T>(
-  path: string,
-  options: RequestInit = {},
-  withToken = true,
-): Promise<T> {
-  const headers = new Headers(options.headers)
-  headers.set('Accept', 'application/json')
-  if (options.body) headers.set('Content-Type', 'application/json')
-  if (withToken) {
-    const current = token()
-    if (current) headers.set('Authorization', `Bearer ${current}`)
-  }
-  const response = await fetch(`${API_URL}${path}`, { ...options, headers })
-  const contentType = response.headers.get('Content-Type') ?? ''
-  const payload = contentType.includes('application/json')
-    ? await response.json()
-    : await response.text()
-  if (!response.ok) {
-    const message =
-      typeof payload === 'object' && payload && 'mensaje' in payload
-        ? String((payload as { mensaje: unknown }).mensaje)
-        : `Error ${response.status} al comunicarse con la API.`
-    throw new Error(message)
-  }
-  return payload as T
-}
+import { request } from '../shared/http'
 
 export const realPo01Api: Po01ApiClient = {
   login(usuario: string, password: string): Promise<Po01Session> {

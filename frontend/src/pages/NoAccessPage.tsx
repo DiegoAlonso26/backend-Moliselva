@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { ArrowLeft, ShieldX } from 'lucide-react'
 import { useAuth } from '../auth/AuthContext'
 import { PageHeader } from '../components/PageHeader'
-import { roleLabel } from '../lib/permissions'
+import { roleLabel } from '../po01/permissions'
 
 export function NoAccessPage() {
   const { user } = useAuth()
