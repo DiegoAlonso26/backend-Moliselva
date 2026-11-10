@@ -26,16 +26,17 @@ La finalización bloquea el lote y, en una transacción, valida que tenga todos 
 
 La confirmación bloquea despacho y pedido, comprueba que el pedido admita la operación y que los productos y cantidades del despacho no excedan el pedido. El adaptador JDBC invoca `confirmar_despacho` de la base, que valida el stock, registra las salidas al kardex y actualiza ambos estados. La bitácora participa en la misma transacción. Las rutas y los DTO públicos no cambiaron.
 
-La única definición de tablas activa es `../SW E3 Base de datos Moliselva/init/001_moliselva.sql` de Rómulo, con el esquema `moliselva`. La actualización `002_po01_merma_bitacora.sql` sirve para bases creadas antes del 26 de octubre; la instalación nueva ya contiene esos cambios. El backend no ejecuta Flyway ni crea tablas paralelas. Se conecta a `jdbc:postgresql://db:5432/moliselva_demo?currentSchema=moliselva` en Compose.
+La única definición de tablas activa es `db/init/001_moliselva.sql` de Rómulo (17 tablas, esquema `moliselva`), copiada en este repositorio sin modificar. Las actualizaciones `002_po01_merma_bitacora.sql` y `003_recepcion_id_registra.sql` sirven para bases creadas antes del 26 de octubre y del 9 de noviembre; la instalación nueva ya contiene esos cambios. Ver [`db/README.md`](db/README.md). El backend no ejecuta Flyway ni crea tablas paralelas. Se conecta a `jdbc:postgresql://db:5432/moliselva_demo?currentSchema=moliselva` en Compose.
 
-El `Dockerfile` construye la aplicación y ejecuta las pruebas de Maven. El Compose principal está en `../SW E3 Base de datos Moliselva/docker-compose.yml`; incluye `db` con healthcheck y `api` con dependencia a la base saludable. `backend/compose.yaml` usa los mismos servicios y volumen para el puente local de compilación.
+El `Dockerfile` construye la aplicación y ejecuta las pruebas de Maven. `compose.yaml`, en la raíz del repositorio, es autocontenido: incluye `db` con healthcheck, que monta `db/init/` y publica PostgreSQL solo en `127.0.0.1`, y `api` con dependencia a la base saludable.
 
 ## Arranque local
 
-1. En `SW E3 Base de datos Moliselva/`, configurar `.env` con `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_PORT`, `JWT_SECRET` y `DEMO_PASSWORD`. Deben mantenerse fuera del repositorio. Este entorno de trabajo ya tiene un `.env` local con claves aleatorias de prueba; para consultar la contraseña demo, abrir ese archivo localmente. No usarla en producción.
-2. Mantener `backend/` y `SW E3 Base de datos Moliselva/` como carpetas hermanas.
-3. Desde `SW E3 Base de datos Moliselva/`, ejecutar `docker compose up -d --build`.
-4. La API queda en `http://localhost:8080/api`. En una base nueva, PostgreSQL ejecuta los scripts `init/`. No usar `docker compose down -v` si se desean conservar datos.
+1. Clonar el repositorio: `git clone https://github.com/DiegoAlonso26/backend-Moliselva.git` y entrar en la carpeta.
+2. Copiar la plantilla: `cp .env.example .env` (en PowerShell, `Copy-Item .env.example .env`).
+3. Editar `.env` y reemplazar `POSTGRES_PASSWORD`, `JWT_SECRET` y `DEMO_PASSWORD` por valores propios y aleatorios. Opcionalmente ajustar `POSTGRES_PORT` y `CORS_ORIGINS`. `.env` está en `.gitignore`: no se sube.
+4. Desde la raíz del repositorio, ejecutar `docker compose up -d --build`.
+5. La API queda en `http://localhost:8080/api`. En un volumen nuevo, PostgreSQL ejecuta los scripts de `db/init/`. Si el volumen se creó antes del 9 de noviembre de 2026, aplicar `003` con el comando de [`db/README.md`](db/README.md). No usar `docker compose down -v` si se desean conservar datos.
 
 Al iniciar, `DemoPasswordInitializer` reemplaza `HASH_DEMO_REEMPLAZAR` de los cuatro usuarios de prueba por un hash BCrypt de `DEMO_PASSWORD`. Solo modifica esas filas con marcador; no restablece contraseñas ya configuradas.
 
@@ -46,7 +47,7 @@ Al iniciar, `DemoPasswordInitializer` reemplaza `HASH_DEMO_REEMPLAZAR` de los cu
 Con los contenedores iniciados, abrir <http://localhost:8080/swagger-ui/index.html>.
 Alli se pueden ejecutar las peticiones sin Postman:
 
-1. Abrir `POST /api/auth/login`, pulsar **Try it out**, escribir `operario_demo` y la clave `DEMO_PASSWORD` de `SW E3 Base de datos Moliselva/.env`, y pulsar **Execute**.
+1. Abrir `POST /api/auth/login`, pulsar **Try it out**, escribir `operario_demo` y la clave `DEMO_PASSWORD` del `.env` local, y pulsar **Execute**.
 2. Copiar solamente el valor `token` de la respuesta.
 3. Pulsar **Authorize** (arriba a la derecha), pegar el token y confirmar. Swagger agrega el prefijo `Bearer` automaticamente.
 4. Ejecutar las rutas protegidas con **Try it out**. Para las rutas de jefe o administrador, iniciar sesion con `jefe_demo` o `admin_demo` y actualizar el token en **Authorize**.
@@ -119,13 +120,13 @@ Los errores usan `{"codigo":"...","mensaje":"..."}`. Un token ausente o vencido 
 
 - `mvn -B verify` ejecuta las pruebas de reglas, casos de uso y seguridad HTTP sin conexión a PostgreSQL. Las pruebas de seguridad usan JWT ficticios y colaboradores simulados.
 - En `frontend/`, `npm ci`, `npm test` y `npm run build` verifican la interfaz de Elías con Node 20. Para abrirla localmente, ejecutar `npm run dev` con la API iniciada; consultar `frontend/README.md`.
-- `.github/workflows/ci.yml` ejecuta estas verificaciones en los PR hacia `main`, los push a `main` y `elias`, o manualmente. Publica `target/surefire-reports` incluso si el backend falla; el trabajo del frontend depende de la presencia de su manifiesto.
-- El trabajo `compose` usa `.env.example` para validar la configuración con `docker compose config -q`. No comprueba un despliegue: los scripts de inicialización de PostgreSQL siguen en la carpeta hermana de la tarea 9.
+- `.github/workflows/ci.yml` ejecuta estas verificaciones en los PR hacia `main`, los push a `main`, o manualmente. Publica `target/surefire-reports` incluso si el backend falla; el trabajo del frontend depende de la presencia de su manifiesto.
+- El trabajo `compose` usa `.env.example` para validar la configuración con `docker compose config -q`. No comprueba un despliegue; el arranque real con base nueva y antigua está en [la evidencia de `id_registra`](evidencias/id-registra-2026-11-10.md).
 - Los resultados y las diferencias detectadas respecto a la guía de la tarea 13 se documentan en [la evidencia de pruebas](evidencias/pruebas-2026-11-03.md).
 - `docker compose build` compila Java y ejecuta las pruebas unitarias de reglas y casos de uso.
-- `backend/smoke-po01.ps1` prueba por HTTP los cuatro logins, recepción normal, pendiente y rechazada, autorización y duplicado, stock, kardex, exportación y permisos. Usa solo datos de prueba locales y crea registros en la base de la demo.
+- `backend/smoke-po01.ps1` prueba por HTTP los cuatro logins, recepción normal, pendiente y rechazada, autorización y duplicado, stock, kardex, exportación, permisos y `registradoPor` en el listado y el detalle. Usa solo datos de prueba locales y crea registros en la base de la demo.
 - `backend/smoke-crud.ps1` recorre los CRUD de usuarios, clientes, insumos, productos, fórmulas, lotes, pedidos, despachos y sus detalles; prueba corrección de recepción, ajustes de inventario, estados, permisos y revocación de token. Crea datos de prueba y deja los movimientos históricos inmutables.
-- Desde `backend/`, ejecutar `pwsh -NoProfile -File .\smoke-crud.ps1` o `pwsh -NoProfile -File .\smoke-po01.ps1`. Ambos leen `DEMO_PASSWORD` del `.env` local, o del `.env` de la carpeta hermana de la base de datos.
+- Desde la raíz del repositorio, ejecutar `pwsh -NoProfile -File .\smoke-crud.ps1` o `pwsh -NoProfile -File .\smoke-po01.ps1`. Ambos leen `DEMO_PASSWORD` del `.env` local y no la imprimen.
 - `backend/Moliselva.postman_collection.json` contiene los endpoints de la sección 18.4. Configurar la variable `demoPassword` en Postman con la clave local; no exportar esa variable con la colección si se comparte.
 
-**Pendiente de la tarea 9:** Rómulo todavía no incorporó `recepcion.id_registra`. En el `POST`, `registradoPor` es el usuario autenticado; en las listas queda `null`. La bitácora registra quién creó cada recepción. Cuando se añada la columna, habrá que actualizar el repository y el modelo de datos de la tarea 6.
+**Quién registra cada recepción:** el backend guarda en `recepcion.id_registra` el `id` del usuario del token (nunca un dato del cuerpo de la petición). `POST`, `GET /api/recepciones` y `GET /api/recepciones/{id}` devuelven `registradoPor` con ese usuario. `autorizadoPor` (`id_autoriza`) sigue siendo solo el jefe de planta que decide una recepción PENDIENTE. Las recepciones anteriores a la migración `003` tienen `id_registra` NULL y se listan con `registradoPor: null`. La bitácora también registra quién creó cada recepción.

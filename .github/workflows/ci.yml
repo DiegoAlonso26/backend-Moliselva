@@ -2,7 +2,7 @@ name: Integración continua
 
 on:
   push:
-    branches: [main, elias]
+    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:

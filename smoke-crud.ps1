@@ -1,7 +1,8 @@
 # Prueba de los CRUD ampliados. Usa datos descartables y conserva los historiales inmutables.
 $ErrorActionPreference='Stop'
 Set-Location -LiteralPath (Split-Path -Parent $MyInvocation.MyCommand.Path)
-$envPath=if (Test-Path '.env') { '.env' } else { '..\SW E3 Base de datos Moliselva\.env' }
+$envPath='.env'
+if (-not (Test-Path -LiteralPath $envPath)) { throw 'Falta .env en la raíz del repositorio (copiar .env.example)' }
 $line=Get-Content -LiteralPath $envPath | Where-Object { $_.StartsWith('DEMO_PASSWORD=') } | Select-Object -First 1
 if (-not $line) { throw 'DEMO_PASSWORD no configurada' }
 $password=$line.Substring('DEMO_PASSWORD='.Length)

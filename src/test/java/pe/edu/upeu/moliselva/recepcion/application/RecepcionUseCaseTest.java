@@ -33,7 +33,7 @@ class RecepcionUseCaseTest {
         RecepcionDatos datos = datos("14.5");
         when(proveedores.existeActivo(7)).thenReturn(true);
         when(inventario.maizId()).thenReturn(Optional.of(4L));
-        when(recepciones.insertar(datos,4,EstadoRecepcion.ACEPTADA)).thenReturn(11L);
+        when(recepciones.insertar(datos,4,EstadoRecepcion.ACEPTADA,3)).thenReturn(11L);
         when(recepciones.buscar(11)).thenReturn(Optional.of(recepcion(EstadoRecepcion.ACEPTADA)));
 
         Recepcion resultado = new RegistrarRecepcion(recepciones,proveedores,inventario,bitacora)
@@ -49,7 +49,7 @@ class RecepcionUseCaseTest {
         RecepcionDatos datos = datos("14.8");
         when(proveedores.existeActivo(7)).thenReturn(true);
         when(inventario.maizId()).thenReturn(Optional.of(4L));
-        when(recepciones.insertar(datos,4,EstadoRecepcion.PENDIENTE)).thenReturn(11L);
+        when(recepciones.insertar(datos,4,EstadoRecepcion.PENDIENTE,3)).thenReturn(11L);
         when(recepciones.buscar(11)).thenReturn(Optional.of(recepcion(EstadoRecepcion.PENDIENTE)));
 
         new RegistrarRecepcion(recepciones,proveedores,inventario,bitacora)
@@ -84,7 +84,7 @@ class RecepcionUseCaseTest {
         var datos = datos("15.01");
         when(proveedores.existeActivo(7)).thenReturn(true);
         when(inventario.maizId()).thenReturn(Optional.of(4L));
-        when(recepciones.insertar(datos,4,EstadoRecepcion.RECHAZADA)).thenReturn(11L);
+        when(recepciones.insertar(datos,4,EstadoRecepcion.RECHAZADA,3)).thenReturn(11L);
         when(recepciones.buscar(11)).thenReturn(Optional.of(recepcion(EstadoRecepcion.RECHAZADA)));
 
         var resultado = new RegistrarRecepcion(recepciones,proveedores,inventario,bitacora)
@@ -147,6 +147,47 @@ class RecepcionUseCaseTest {
         assertEquals(RecepcionFailure.Reason.RECEPCION_NO_EDITABLE,error.reason());
         verify(recepciones,never()).eliminarEditable(anyLong());
         verifyNoInteractions(inventario,bitacora);
+    }
+
+    @Test
+    void registrarEnviaElIdDelOperarioComoIdRegistra() {
+        RecepcionDatos datos = datos("14.5");
+        when(proveedores.existeActivo(7)).thenReturn(true);
+        when(inventario.maizId()).thenReturn(Optional.of(4L));
+        when(recepciones.insertar(datos,4,EstadoRecepcion.ACEPTADA,3)).thenReturn(11L);
+        when(recepciones.buscar(11)).thenReturn(Optional.of(recepcion(EstadoRecepcion.ACEPTADA)));
+
+        new RegistrarRecepcion(recepciones,proveedores,inventario,bitacora).registrar(datos,operario);
+
+        verify(recepciones).insertar(datos,4,EstadoRecepcion.ACEPTADA,3);
+    }
+
+    @Test
+    void registrarEnviaElIdDelJefeDePlantaComoIdRegistra() {
+        RecepcionDatos datos = datos("14.8");
+        when(proveedores.existeActivo(7)).thenReturn(true);
+        when(inventario.maizId()).thenReturn(Optional.of(4L));
+        when(recepciones.insertar(datos,4,EstadoRecepcion.PENDIENTE,2)).thenReturn(12L);
+        when(recepciones.buscar(12)).thenReturn(Optional.of(recepcion(EstadoRecepcion.PENDIENTE)));
+
+        var resultado = new RegistrarRecepcion(recepciones,proveedores,inventario,bitacora)
+            .registrar(datos,jefe);
+
+        verify(recepciones).insertar(datos,4,EstadoRecepcion.PENDIENTE,2);
+        assertEquals("jefe",resultado.registradoPor());
+    }
+
+    @Test
+    void rolSinPermisoNoRegistraNiLlamaAInsertar() {
+        var contadora = new ActorRecepcion(4,"contadora","CONTADORA");
+
+        var error = assertThrows(RecepcionFailure.class, () ->
+            new RegistrarRecepcion(recepciones,proveedores,inventario,bitacora)
+                .registrar(datos("14.5"),contadora));
+
+        assertEquals(RecepcionFailure.Reason.SIN_PERMISO,error.reason());
+        verify(recepciones,never()).insertar(any(),anyLong(),any(),anyLong());
+        verifyNoInteractions(proveedores,inventario,bitacora);
     }
 
     private static RecepcionDatos datos(String humedad) {

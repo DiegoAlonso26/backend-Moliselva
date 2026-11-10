@@ -1,0 +1,6 @@
+OK: POST /recepciones devuelve 201 con registradoPor = operario_demo (HTTP 201)
+Recepciones del día en la base antigua: 7
+OK: listado muestra la recepción nueva con registradoPor = operario_demo
+OK: recepción histórica (id 1, id_registra NULL) sigue listándose con registradoPor = null
+OK: GET /recepciones/1 devuelve registradoPor = null
+Base antigua + 003: verificada.
