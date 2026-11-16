@@ -1,0 +1,26 @@
+IGUAL: POST /recepciones humedad 14.5 -> 201
+IGUAL: POST /recepciones humedad 14.8 -> 201
+IGUAL: POST /recepciones humedad 15.5 -> 201
+IGUAL: POST /recepciones humedad 14.9 -> 201
+IGUAL: POST /recepciones humedad 16 -> 201
+IGUAL: PATCH decidir ACEPTAR pendiente -> 200
+IGUAL: PATCH decidir otra vez (no pendiente) -> 409
+IGUAL: PATCH decidir aceptada -> 409
+IGUAL: PATCH decidir como operario -> 403
+IGUAL: PATCH decidir RECHAZAR pendiente2 -> 200
+IGUAL: PUT corregir rechazada automática a aceptada -> 200
+IGUAL: PUT corregir aceptada -> 409
+IGUAL: PUT corregir decidida por el jefe -> 409
+IGUAL: PUT corregir con neto no positivo -> 400
+IGUAL: PUT corregir con merma mayor al neto -> 400
+IGUAL: PUT corregir proveedor inexistente -> 400
+IGUAL: PUT corregir inexistente -> 404
+IGUAL: DELETE aceptada -> 409
+IGUAL: DELETE rechazada automática -> 204
+IGUAL: DELETE ya eliminada -> 404
+IGUAL: POST como contadora -> 403
+IGUAL: GET final aceptada -> 200
+IGUAL: GET final pendiente -> 200
+IGUAL: GET final rechazada -> 200
+IGUAL: GET final pendiente2 -> 200
+Total: 25/25 escrituras con el mismo estado y el mismo JSON (sin contar idRecepcion ni fechaHora)

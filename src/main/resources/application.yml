@@ -3,6 +3,14 @@ spring:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/moliselva_demo?currentSchema=moliselva}
     username: ${POSTGRES_USER:moliselva}
     password: ${POSTGRES_PASSWORD:}
+  jpa:
+    # El esquema lo crean los scripts de db/init: Hibernate solo valida el mapeo y nunca altera tablas.
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        default_schema: moliselva
 server:
   error:
     include-message: never

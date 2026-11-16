@@ -2,22 +2,24 @@ package pe.edu.upeu.moliselva.domain.reglas;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import pe.edu.upeu.moliselva.domain.recepcion.RecepcionPolicy;
+import pe.edu.upeu.moliselva.domain.recepcion.PesajeMaiz;
+import pe.edu.upeu.moliselva.domain.recepcion.PorcentajeHumedad;
 import pe.edu.upeu.moliselva.domain.produccion.LotePolicy;
 
+/** Fachada de reglas sueltas; las de recepción delegan en los value objects PesajeMaiz y PorcentajeHumedad. */
 public final class BusinessRules {
     private BusinessRules() {}
 
     public static BigDecimal pesoNeto(BigDecimal bruto, BigDecimal tara, BigDecimal sacos) {
-        return RecepcionPolicy.pesoNeto(bruto,tara,sacos);
+        return PesajeMaiz.de(bruto,tara,sacos,BigDecimal.ZERO).neto().valor();
     }
 
     public static String estadoRecepcion(BigDecimal humedad) {
-        return RecepcionPolicy.estadoRecepcion(humedad).name();
+        return PorcentajeHumedad.de(humedad).estadoInicial().name();
     }
 
     public static BigDecimal entradaKardex(BigDecimal neto, BigDecimal mermaLimpieza) {
-        return RecepcionPolicy.entradaKardex(neto,mermaLimpieza);
+        return PesajeMaiz.de(neto,BigDecimal.ZERO,BigDecimal.ZERO,mermaLimpieza).entradaKardex().valor();
     }
 
     public static BigDecimal kgMacro(int tamanoKg, BigDecimal porcentaje) {

@@ -6,7 +6,7 @@ Backend de la demo de **PO-01 Recepción y acondicionamiento de maíz** y su kar
 
 ## Arquitectura y datos
 
-Java 17, Spring Boot 3, API REST, Spring Security con JWT, JDBC y PostgreSQL 16. La recepción y su entrada al kardex, la finalización de un lote y la confirmación de un despacho se ejecutan cada una en **una transacción**.
+Java 17, Spring Boot 3, API REST, Spring Security con JWT, JPA (Hibernate) para escribir y JDBC para leer en recepción y kardex, JDBC en el resto, y PostgreSQL 16. La recepción y su entrada al kardex, la finalización de un lote y la confirmación de un despacho se ejecutan cada una en **una transacción**.
 
 ### Clean Architecture
 
@@ -14,12 +14,18 @@ Todo el backend está organizado en cuatro capas globales: PO-01 (recepción de 
 
 | Capa | Paquete | Contenido |
 |---|---|---|
-| Dominio | `domain/{recepcion,proveedor,inventario,produccion,ventas,auth,maestros,formulas,reglas}` | Entidades y reglas en Java puro: humedad y merma, tamaños de lote, estados de pedido y despacho, destino del reparto, CSV del kardex, normalización de datos maestros, insumo Maíz protegido, ajuste con un solo ítem |
-| Aplicación | `application/` | Casos de uso sin Spring, sus interfaces de entrada, los `gateway` que necesitan y las fallas de negocio |
+| Dominio | `domain/{shared,recepcion,proveedor,inventario,produccion,ventas,auth,maestros,formulas,reglas}` | Entidades y reglas en Java puro. En recepción, la entidad `Recepcion` y los value objects `PesajeMaiz` y `PorcentajeHumedad`. También: tamaños de lote, estados de pedido y despacho, destino del reparto, normalización de datos maestros, insumo Maíz protegido y ajuste con un solo ítem |
+| Aplicación | `application/` | Casos de uso sin Spring. En recepción y kardex, cada caso de uso es un Command o Query + Handler + Response que se envía por el `Mediador`. En los módulos simples, una interfaz de caso de uso y su interactor. También los `gateway` que necesitan y las fallas de negocio |
 | Presentación | `presentation/rest/` | Controladores con `@PreAuthorize`, DTO, mappers, traducción de fallas a HTTP (`error/`) y OpenAPI (`config/`) |
-| Infraestructura | `infrastructure/` | Gateways JDBC, seguridad (`SecurityConfig`, JWT, BCrypt, actor del token) y `config/`: los composition roots, `Transacciones` (`Consultar*` de solo lectura) y la activación de usuarios demo |
+| Infraestructura | `infrastructure/` | `cqrs/MediadorSpring` (handler por tipo y transacción por command o query), gateways JPA de escritura y JDBC de lectura, seguridad (`SecurityConfig`, JWT, BCrypt, actor del token) y `config/`: los composition roots, `Transacciones` (módulos simples; `Consultar*` de solo lectura) y la activación de usuarios demo |
 
-Regla de dependencias: `presentation → application → domain ← application ← infrastructure`. `ArquitecturaLimpiaTest` (ArchUnit) la verifica en cada `mvn verify` y exige que toda clase pertenezca a una de las cuatro capas. Las rutas, los JSON, los permisos y las reglas de negocio no cambiaron respecto de la versión hexagonal.
+Regla de dependencias: `presentation → application → domain ← application ← infrastructure`. `ArquitecturaLimpiaTest` (ArchUnit) la verifica en cada `mvn verify`. Exige además que:
+- toda clase pertenezca a una de las cuatro capas;
+- los controladores usen el mediador y no los handlers;
+- cada Command o Query sea un `record` con exactamente un handler;
+- los value objects no tengan id.
+
+Hibernate arranca con `ddl-auto: validate`: no crea tablas, solo valida el mapeo contra los scripts de `db/init`. Las rutas, los JSON, los permisos y las reglas de negocio no cambiaron.
 
 Transacciones que siguen siendo una sola unidad:
 - **Recepción:** registrar, decidir o corregir guarda la recepción, su entrada al kardex y la bitácora.
