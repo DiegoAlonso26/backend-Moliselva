@@ -11,7 +11,7 @@ import {
 import { useAuth } from '../auth/AuthContext'
 import { InlineSpinner } from '../components/Loading'
 import { BrandMark } from '../components/Brand'
-import { homeForRole } from '../po01/permissions'
+
 
 export function LoginPage() {
   const { user, login } = useAuth()
@@ -23,7 +23,7 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  if (user) return <Navigate to={homeForRole(user.rol)} replace />
+  if (user) return <Navigate to={'/inicio'} replace />
 
   const destination = (location.state as { from?: string } | null)?.from ?? ''
 
@@ -37,7 +37,7 @@ export function LoginPage() {
     setLoading(true)
     try {
       const nextSession = await login(usuario.trim(), password)
-      const fallback = homeForRole(nextSession.usuario.rol)
+      const fallback = '/inicio'
       navigate(destination && destination !== '/' ? destination : fallback, {
         replace: true,
       })

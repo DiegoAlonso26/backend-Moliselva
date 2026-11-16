@@ -6,25 +6,31 @@ Backend de la demo de **PO-01 Recepción y acondicionamiento de maíz** y su kar
 
 ## Arquitectura y datos
 
-Java 17, Spring Boot 3, API REST, Spring Security con JWT, JDBC y PostgreSQL 16. El código está dividido en `auth`, `proveedor`, `maestros`, `recepcion`, `operaciones`, `inventario` y `comun`. La recepción y su entrada al kardex, la finalización de un lote y la confirmación de un despacho se ejecutan cada una en **una transacción**.
+Java 17, Spring Boot 3, API REST, Spring Security con JWT, JPA (Hibernate) para escribir y JDBC para leer en recepción y kardex, JDBC en el resto, y PostgreSQL 16. La recepción y su entrada al kardex, la finalización de un lote y la confirmación de un despacho se ejecutan cada una en **una transacción**.
 
-### Recepción: estructura hexagonal
+### Clean Architecture
 
-`recepcion/domain` contiene las reglas de peso, merma y humedad y los datos del proceso. `recepcion/application` divide el flujo en cinco casos de uso: registrar, decidir, corregir, eliminar y consultar. Sus interfaces en `port/in` son las operaciones disponibles para la API; las de `port/out` expresan qué necesitan esos casos de uso de recepción, proveedores, inventario y bitácora. `adapter/in/web` convierte HTTP y DTO a esos datos; `adapter/out/jdbc` implementa los puertos de salida con las consultas SQL y los repositorios existentes.
+Todo el backend está organizado en cuatro capas globales: PO-01 (recepción de maíz, proveedores y kardex de maíz), producción por lote, pedidos y despachos, autenticación y usuarios, clientes, insumos y productos, fórmulas, inventario general y bitácora. La guía completa, con diagrama y el recorrido de `POST /api/recepciones`, está en [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md).
 
-La dirección de dependencias es `web → port/in → application → port/out ← jdbc`. Registrar y decidir mantienen en una sola transacción la recepción, su movimiento de inventario cuando corresponde y la bitácora. Las rutas y los DTO públicos de recepción no cambiaron.
+| Capa | Paquete | Contenido |
+|---|---|---|
+| Dominio | `domain/{shared,recepcion,proveedor,inventario,produccion,ventas,auth,maestros,formulas,reglas}` | Entidades y reglas en Java puro. En recepción, la entidad `Recepcion` y los value objects `PesajeMaiz` y `PorcentajeHumedad`. También: tamaños de lote, estados de pedido y despacho, destino del reparto, normalización de datos maestros, insumo Maíz protegido y ajuste con un solo ítem |
+| Aplicación | `application/` | Casos de uso sin Spring. En recepción y kardex, cada caso de uso es un Command o Query + Handler + Response que se envía por el `Mediador`. En los módulos simples, una interfaz de caso de uso y su interactor. También los `gateway` que necesitan y las fallas de negocio |
+| Presentación | `presentation/rest/` | Controladores con `@PreAuthorize`, DTO, mappers, traducción de fallas a HTTP (`error/`) y OpenAPI (`config/`) |
+| Infraestructura | `infrastructure/` | `cqrs/MediadorSpring` (handler por tipo y transacción por command o query), gateways JPA de escritura y JDBC de lectura, seguridad (`SecurityConfig`, JWT, BCrypt, actor del token) y `config/`: los composition roots, `Transacciones` (módulos simples; `Consultar*` de solo lectura) y la activación de usuarios demo |
 
-### Producción por lote: estructura hexagonal
+Regla de dependencias: `presentation → application → domain ← application ← infrastructure`. `ArquitecturaLimpiaTest` (ArchUnit) la verifica en cada `mvn verify`. Exige además que:
+- toda clase pertenezca a una de las cuatro capas;
+- los controladores usen el mediador y no los handlers;
+- cada Command o Query sea un `record` con exactamente un handler;
+- los value objects no tengan id.
 
-`produccion/domain` define el lote, sus insumos, estados y reglas. `produccion/application` contiene los casos de uso para consultar, planificar, gestionar insumos, cambiar estado y finalizar. Los puertos de salida expresan las operaciones necesarias de lotes, catálogo, inventario y bitácora; `adapter/out/jdbc` las implementa. `adapter/in/web` conserva `/api/lotes` y los DTO de Swagger. `OperacionService` continúa atendiendo fórmulas, pedidos y despachos.
+Hibernate arranca con `ddl-auto: validate`: no crea tablas, solo valida el mapeo contra los scripts de `db/init`. Las rutas, los JSON, los permisos y las reglas de negocio no cambiaron.
 
-La finalización bloquea el lote y, en una transacción, valida que tenga todos los insumos de la fórmula, descuenta la cantidad real (o la calculada si falta), registra el producto terminado, cambia el estado y escribe la bitácora. Las modificaciones de lotes e insumos bloquean el mismo registro para serializarse con la finalización. Las rutas y los campos JSON públicos no cambiaron.
-
-### Pedidos y despachos: estructura hexagonal
-
-`ventas/domain` contiene pedido, despacho, detalles, estados y reglas de entrega. `ventas/application` separa consultas, CRUD, cambios de estado y confirmación; sus puertos describen las operaciones necesarias sobre pedidos, despachos, catálogo y bitácora. `adapter/in/web` conserva `/api/pedidos` y `/api/despachos`, y `adapter/out/jdbc` implementa los puertos. `OperacionService` queda dedicado a fórmulas.
-
-La confirmación bloquea despacho y pedido, comprueba que el pedido admita la operación y que los productos y cantidades del despacho no excedan el pedido. El adaptador JDBC invoca `confirmar_despacho` de la base, que valida el stock, registra las salidas al kardex y actualiza ambos estados. La bitácora participa en la misma transacción. Las rutas y los DTO públicos no cambiaron.
+Transacciones que siguen siendo una sola unidad:
+- **Recepción:** registrar, decidir o corregir guarda la recepción, su entrada al kardex y la bitácora.
+- **Finalizar un lote:** bloquea el lote, valida que tenga todos los insumos de la fórmula, descuenta la cantidad real (o la calculada si falta), registra el producto terminado, cambia el estado y escribe la bitácora. Si algo falla (por ejemplo, stock insuficiente), no queda ningún movimiento.
+- **Confirmar un despacho:** bloquea despacho y pedido, comprueba que el pedido lo admita y que no se excedan sus productos y cantidades, e invoca `confirmar_despacho` de la base, que valida el stock, registra las salidas al kardex y actualiza ambos estados.
 
 La única definición de tablas activa es `db/init/001_moliselva.sql` de Rómulo (17 tablas, esquema `moliselva`), copiada en este repositorio sin modificar. Las actualizaciones `002_po01_merma_bitacora.sql` y `003_recepcion_id_registra.sql` sirven para bases creadas antes del 26 de octubre y del 9 de noviembre; la instalación nueva ya contiene esos cambios. Ver [`db/README.md`](db/README.md). El backend no ejecuta Flyway ni crea tablas paralelas. Se conecta a `jdbc:postgresql://db:5432/moliselva_demo?currentSchema=moliselva` en Compose.
 
@@ -38,7 +44,7 @@ El `Dockerfile` construye la aplicación y ejecuta las pruebas de Maven. `compos
 4. Desde la raíz del repositorio, ejecutar `docker compose up -d --build`.
 5. La API queda en `http://localhost:8080/api`. En un volumen nuevo, PostgreSQL ejecuta los scripts de `db/init/`. Si el volumen se creó antes del 9 de noviembre de 2026, aplicar `003` con el comando de [`db/README.md`](db/README.md). No usar `docker compose down -v` si se desean conservar datos.
 
-Al iniciar, `DemoPasswordInitializer` reemplaza `HASH_DEMO_REEMPLAZAR` de los cuatro usuarios de prueba por un hash BCrypt de `DEMO_PASSWORD`. Solo modifica esas filas con marcador; no restablece contraseñas ya configuradas.
+Al iniciar, `UsuariosDemoInicializador` (caso de uso `ActivarUsuariosDemo`) reemplaza `HASH_DEMO_REEMPLAZAR` de los cuatro usuarios de prueba por un hash BCrypt de `DEMO_PASSWORD`. Solo modifica esas filas con marcador; no restablece contraseñas ya configuradas.
 
 ## Contrato API
 

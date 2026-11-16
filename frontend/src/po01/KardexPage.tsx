@@ -1,3 +1,4 @@
+import { download } from '../shared/http'
 import { useCallback, useEffect, useState } from 'react'
 import {
   AlertTriangle,
@@ -16,7 +17,6 @@ import { StatCard } from '../components/StatCard'
 import { useToast } from '../components/Toast'
 import {
   displayUser,
-  downloadCsv,
   formatDateTime,
   formatKg,
 } from '../lib/format'
@@ -59,6 +59,7 @@ export function KardexPage() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
+  const [exporting, setExporting] = useState(false)
 
   const load = useCallback(async (refresh = false) => {
     if (refresh) setRefreshing(true)
@@ -87,19 +88,11 @@ export function KardexPage() {
     void load()
   }, [load])
 
-  const handleExport = () => {
-    const rows: Array<Array<string | number>> = [
-      ['Fecha y hora', 'Tipo', 'Cantidad kg', 'Saldo kg', 'Origen', 'Usuario'],
-      ...movimientos.map((row) => [
-        formatDateTime(row.fechaHora),
-        movementLabel[row.tipoMovimiento],
-        row.cantidadKg,
-        row.saldoKg,
-        origen(row),
-        row.usuario,
-      ]),
-    ]
-    downloadCsv(`kardex_maiz_${fechaHoyLocal()}.csv`, rows)
+  const handleExport = async () => {
+    setExporting(true)
+    try { await download('/inventario/maiz/kardex/exportar') }
+    catch (error) { notifyError(error) }
+    finally { setExporting(false) }
   }
 
   if (loading) return <LoadingBlock label="Cargando kardex de maíz…" />
@@ -131,7 +124,8 @@ export function KardexPage() {
               <button
                 type="button"
                 className="button button-secondary"
-                onClick={handleExport}
+                onClick={() => void handleExport()}
+                disabled={exporting}
                 data-testid="btn-exportar-kardex"
               >
                 <Download size={17} />

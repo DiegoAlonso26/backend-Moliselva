@@ -1,0 +1,67 @@
+IGUAL: GET /auth/me -> 200
+IGUAL: GET /usuarios -> 200
+IGUAL: GET /usuarios/1 -> 200
+IGUAL: GET /roles -> 200
+IGUAL: GET /roles/1 -> 200
+IGUAL: GET /proveedores -> 200
+IGUAL: GET /proveedores/1 -> 200
+IGUAL: GET /clientes -> 200
+IGUAL: GET /clientes/1 -> 200
+IGUAL: GET /insumos -> 200
+IGUAL: GET /insumos/1 -> 200
+IGUAL: GET /productos -> 200
+IGUAL: GET /productos/14 -> 200
+IGUAL: GET /formulas -> 200
+IGUAL: GET /formulas/3 -> 200
+IGUAL: GET /formulas/3/detalles -> 200
+IGUAL: GET /lotes -> 200
+IGUAL: GET /lotes/2 -> 200
+IGUAL: GET /lotes/2/insumos -> 200
+IGUAL: GET /pedidos -> 200
+IGUAL: GET /pedidos/3 -> 200
+IGUAL: GET /pedidos/3/detalles -> 200
+IGUAL: GET /despachos -> 200
+IGUAL: GET /despachos/3 -> 200
+IGUAL: GET /despachos/3/detalles -> 200
+IGUAL: GET /inventario/stock -> 200
+IGUAL: GET /inventario/stock/INSUMO/1 -> 200
+IGUAL: GET /inventario/movimientos -> 200
+IGUAL: GET /inventario/movimientos/29 -> 200
+IGUAL: GET /inventario/maiz/kardex -> 200
+IGUAL: GET /inventario/maiz/stock -> 200
+IGUAL: GET /recepciones?fecha=2026-11-16 -> 200
+IGUAL: GET /recepciones/1 -> 200
+IGUAL: GET /bitacora/96 -> 200
+IGUAL (solo cambia el orden de claves): GET /clientes/99999999 -> 404
+IGUAL (solo cambia el orden de claves): GET /formulas/99999999 -> 404
+IGUAL (solo cambia el orden de claves): GET /roles/99 -> 404
+IGUAL (solo cambia el orden de claves): GET /usuarios/99999999 -> 404
+IGUAL (solo cambia el orden de claves): GET /inventario/stock/LOTE/1 -> 400
+IGUAL (solo cambia el orden de claves): GET /lotes/99999999 -> 404
+IGUAL (solo cambia el orden de claves): GET /pedidos/99999999 -> 404
+IGUAL (solo cambia el orden de claves): GET /despachos/99999999 -> 404
+IGUAL (solo cambia el orden de claves): GET /inventario/movimientos/99999999 -> 404
+IGUAL (solo cambia el orden de claves): GET /bitacora/99999999 -> 404
+IGUAL (solo cambia el orden de claves): GET /recepciones/99999999 -> 404
+IGUAL (solo cambia el orden de claves): GET /recepciones?fecha=ayer -> 400
+IGUAL (solo cambia el orden de claves): PUT /insumos/1 -> 409
+IGUAL (solo cambia el orden de claves): DELETE /insumos/1 -> 409
+IGUAL (solo cambia el orden de claves): DELETE /usuarios/1 -> 409
+IGUAL (solo cambia el orden de claves): PUT /usuarios/1 -> 409
+IGUAL (solo cambia el orden de claves): POST /usuarios -> 400
+IGUAL (solo cambia el orden de claves): POST /inventario/movimientos/ajustes -> 400
+IGUAL (solo cambia el orden de claves): POST /inventario/movimientos/ajustes -> 400
+IGUAL (solo cambia el orden de claves): PUT /formulas/3/detalles/1 -> 400
+IGUAL (solo cambia el orden de claves): PATCH /formulas/99999999/vigencia -> 404
+IGUAL (solo cambia el orden de claves): POST /formulas -> 400
+IGUAL (solo cambia el orden de claves): POST /clientes -> 400
+IGUAL (solo cambia el orden de claves): POST /lotes -> 400
+IGUAL (solo cambia el orden de claves): POST /despachos -> 404
+IGUAL (solo cambia el orden de claves): GET /formulas -> 403
+IGUAL (solo cambia el orden de claves): GET /usuarios -> 403
+IGUAL (solo cambia el orden de claves): GET /bitacora -> 403
+IGUAL (solo cambia el orden de claves): POST /auth/login -> 401
+IGUAL (solo cambia el orden de claves): GET /recepciones -> 401
+Byte a byte: 34/64
+IGUAL GET /inventario/maiz/kardex/exportar -> 200
+Total: 65/65 respuestas con el mismo estado y el mismo contenido JSON
