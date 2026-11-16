@@ -12,7 +12,6 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
-import pe.edu.upeu.moliselva.recepcion.application.RecepcionFailure;
 import pe.edu.upeu.moliselva.produccion.application.ProduccionFailure;
 import pe.edu.upeu.moliselva.ventas.application.VentaFailure;
 
@@ -23,18 +22,6 @@ public class ApiErrors {
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<Map<String,String>> known(ApiException ex) {
         return ResponseEntity.status(ex.status()).body(Map.of("codigo",ex.codigo(),"mensaje",ex.getMessage()));
-    }
-
-    @ExceptionHandler(RecepcionFailure.class)
-    public ResponseEntity<Map<String,String>> reception(RecepcionFailure ex) {
-        HttpStatus status = switch (ex.reason()) {
-            case SIN_PERMISO -> HttpStatus.FORBIDDEN;
-            case PROVEEDOR_INVALIDO, PESOS_INVALIDOS, HUMEDAD_FUERA_DE_RANGO -> HttpStatus.BAD_REQUEST;
-            case RECEPCION_NO_ENCONTRADA -> HttpStatus.NOT_FOUND;
-            case MAIZ_NO_CONFIGURADO, RECEPCION_NO_PENDIENTE, RECEPCION_NO_EDITABLE -> HttpStatus.CONFLICT;
-        };
-        return ResponseEntity.status(status)
-            .body(Map.of("codigo",ex.reason().name(),"mensaje",ex.getMessage()));
     }
 
     @ExceptionHandler(ProduccionFailure.class)

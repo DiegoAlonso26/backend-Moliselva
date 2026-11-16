@@ -12,9 +12,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 public final class InventarioDto {
     private InventarioDto() {}
-    public record Kardex(long idMovimiento, LocalDateTime fechaHora, String tipoMovimiento,
-        BigDecimal cantidadKg, BigDecimal saldoKg, Long idRecepcion, String usuario) {}
-    public record Stock(BigDecimal stockKg) {}
     public record ItemStock(String tipoItem, long idItem, String nombre,
         String unidadMedida, BigDecimal stockActual) {}
     public record Ajuste(

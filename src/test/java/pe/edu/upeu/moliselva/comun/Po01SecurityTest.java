@@ -42,29 +42,30 @@ import pe.edu.upeu.moliselva.auth.AuthController;
 import pe.edu.upeu.moliselva.auth.AuthDto;
 import pe.edu.upeu.moliselva.auth.AuthRepository;
 import pe.edu.upeu.moliselva.auth.AuthService;
-import pe.edu.upeu.moliselva.inventario.InventarioController;
-import pe.edu.upeu.moliselva.inventario.InventarioDto;
-import pe.edu.upeu.moliselva.inventario.InventarioService;
-import pe.edu.upeu.moliselva.recepcion.adapter.in.web.RecepcionController;
-import pe.edu.upeu.moliselva.recepcion.application.port.in.ConsultarRecepcionUseCase;
-import pe.edu.upeu.moliselva.recepcion.application.port.in.CorregirRecepcionUseCase;
-import pe.edu.upeu.moliselva.recepcion.application.port.in.DecidirRecepcionUseCase;
-import pe.edu.upeu.moliselva.recepcion.application.port.in.EliminarRecepcionUseCase;
-import pe.edu.upeu.moliselva.recepcion.application.port.in.RegistrarRecepcionUseCase;
-import pe.edu.upeu.moliselva.recepcion.domain.EstadoRecepcion;
-import pe.edu.upeu.moliselva.recepcion.domain.Recepcion;
+import pe.edu.upeu.moliselva.application.inventario.usecase.ConsultarKardexMaizUseCase;
+import pe.edu.upeu.moliselva.application.inventario.usecase.ExportarKardexMaizUseCase;
+import pe.edu.upeu.moliselva.infrastructure.security.JwtActorActual;
+import pe.edu.upeu.moliselva.presentation.rest.inventario.KardexMaizController;
+import pe.edu.upeu.moliselva.presentation.rest.recepcion.RecepcionController;
+import pe.edu.upeu.moliselva.application.recepcion.usecase.ConsultarRecepcionUseCase;
+import pe.edu.upeu.moliselva.application.recepcion.usecase.CorregirRecepcionUseCase;
+import pe.edu.upeu.moliselva.application.recepcion.usecase.DecidirRecepcionUseCase;
+import pe.edu.upeu.moliselva.application.recepcion.usecase.EliminarRecepcionUseCase;
+import pe.edu.upeu.moliselva.application.recepcion.usecase.RegistrarRecepcionUseCase;
+import pe.edu.upeu.moliselva.domain.recepcion.EstadoRecepcion;
+import pe.edu.upeu.moliselva.domain.recepcion.Recepcion;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(controllers = {RecepcionController.class, InventarioController.class,
+@WebMvcTest(controllers = {RecepcionController.class, KardexMaizController.class,
     BitacoraController.class, AuthController.class, LoteController.class}, properties = {
         "app.jwt.secret=secreto-ficticio-exclusivo-de-pruebas-po01-2026",
         "app.jwt.issuer=moliselva-demo"
     })
-@Import({SecurityConfig.class, ApiErrors.class})
+@Import({SecurityConfig.class, ApiErrors.class, JwtActorActual.class})
 class Po01SecurityTest {
     // Material ficticio: no procede de .env ni de credenciales de usuarios demo.
     private static final String OTRO_SECRETO = "otra-firma-ficticia-exclusiva-de-pruebas-po01";
@@ -84,7 +85,8 @@ class Po01SecurityTest {
     @MockitoBean CorregirRecepcionUseCase corregir;
     @MockitoBean EliminarRecepcionUseCase eliminar;
     @MockitoBean ConsultarRecepcionUseCase consultar;
-    @MockitoBean InventarioService inventario;
+    @MockitoBean ConsultarKardexMaizUseCase kardex;
+    @MockitoBean ExportarKardexMaizUseCase exportarKardex;
     @MockitoBean BitacoraService bitacora;
 
     @MockitoBean ConsultarLotesUseCase consultarLotes;
@@ -106,9 +108,9 @@ class Po01SecurityTest {
         when(corregir.corregir(anyLong(),any(),any())).thenReturn(recepcion);
         when(consultar.listar(any())).thenReturn(List.of(recepcion));
         when(consultar.obtener(11)).thenReturn(recepcion);
-        when(inventario.kardex()).thenReturn(List.of());
-        when(inventario.stock()).thenReturn(new InventarioDto.Stock(new BigDecimal("880.000")));
-        when(inventario.exportarCsv(7)).thenReturn("cantidadKg\n880.000\n".getBytes(StandardCharsets.UTF_8));
+        when(kardex.movimientos()).thenReturn(List.of());
+        when(kardex.stockKg()).thenReturn(new BigDecimal("880.000"));
+        when(exportarKardex.exportar(argThat(actor -> actor != null && actor.id() == 7))).thenReturn("cantidadKg\n880.000\n".getBytes(StandardCharsets.UTF_8));
         when(bitacora.recientes()).thenReturn(List.of());
     }
 
@@ -161,9 +163,9 @@ class Po01SecurityTest {
                 case "DELETE /api/recepciones/11" -> verify(eliminar).eliminar(eq(11L),any());
                 case "GET /api/recepciones" -> verify(consultar).listar(any());
                 case "GET /api/recepciones/11" -> verify(consultar).obtener(11);
-                case "GET /api/inventario/maiz/kardex" -> verify(inventario).kardex();
-                case "GET /api/inventario/maiz/stock" -> verify(inventario).stock();
-                case "GET /api/inventario/maiz/kardex/exportar" -> verify(inventario).exportarCsv(7);
+                case "GET /api/inventario/maiz/kardex" -> verify(kardex).movimientos();
+                case "GET /api/inventario/maiz/stock" -> verify(kardex).stockKg();
+                case "GET /api/inventario/maiz/kardex/exportar" -> verify(exportarKardex).exportar(argThat(actor -> actor.id() == 7));
                 case "GET /api/bitacora" -> verify(bitacora).recientes();
                 default -> throw new AssertionError("Ruta de prueba sin verificación");
             }
@@ -268,6 +270,6 @@ class Po01SecurityTest {
     }
 
     private void sinInteraccionesDeNegocio() {
-        verifyNoInteractions(registrar,decidir,corregir,eliminar,consultar,inventario,bitacora,autenticacion);
+        verifyNoInteractions(registrar,decidir,corregir,eliminar,consultar,kardex,exportarKardex,bitacora,autenticacion);
     }
 }

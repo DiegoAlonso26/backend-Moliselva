@@ -1,7 +1,5 @@
 package pe.edu.upeu.moliselva.inventario;
 
-import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
@@ -18,20 +16,6 @@ public class InventarioService {
         this.repository=repository; this.audit=audit;
     }
 
-    public long maizId() {
-        return repository.maizId().orElseThrow(() ->
-            new ApiException(HttpStatus.CONFLICT,"MAIZ_NO_CONFIGURADO","No existe el insumo Maíz activo"));
-    }
-
-    public void registrarEntrada(long idInsumo, long idRecepcion, BigDecimal cantidad, long idUsuario) {
-        repository.insertarEntradaMaiz(idInsumo,idRecepcion,cantidad,idUsuario);
-    }
-
-    @Transactional(readOnly=true)
-    public List<InventarioDto.Kardex> kardex() { return repository.kardexMaiz(maizId()); }
-
-    @Transactional(readOnly=true)
-    public InventarioDto.Stock stock() { return new InventarioDto.Stock(repository.stockMaiz(maizId())); }
     @Transactional(readOnly=true)
     public List<InventarioDto.ItemStock> stockTodos() { return repository.stockTodos(); }
     @Transactional(readOnly=true)
@@ -41,20 +25,6 @@ public class InventarioService {
         }
         return repository.stockItem(tipo,id).orElseThrow(() ->
             new ApiException(HttpStatus.NOT_FOUND,"ITEM_NO_ENCONTRADO","El item no existe"));
-    }
-
-    @Transactional
-    public byte[] exportarCsv(long usuarioId) {
-        StringBuilder csv = new StringBuilder("\uFEFFidMovimiento;fechaHora;tipoMovimiento;cantidadKg;saldoKg;idRecepcion;usuario\r\n");
-        for (var row : kardex()) {
-            csv.append(row.idMovimiento()).append(';').append(row.fechaHora()).append(';')
-                .append(row.tipoMovimiento()).append(';').append(row.cantidadKg().toPlainString()).append(';')
-                .append(row.saldoKg().toPlainString()).append(';')
-                .append(row.idRecepcion()==null ? "" : row.idRecepcion()).append(';')
-                .append(csvText(row.usuario())).append("\r\n");
-        }
-        audit.registrar(usuarioId,"EXPORTAR_KARDEX_MAIZ",null);
-        return csv.toString().getBytes(StandardCharsets.UTF_8);
     }
 
     @Transactional(readOnly=true)
@@ -88,7 +58,4 @@ public class InventarioService {
         return movimiento(id);
     }
 
-    private String csvText(String value) {
-        return "\""+value.replace("\"","\"\"")+"\"";
-    }
 }
