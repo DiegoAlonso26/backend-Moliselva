@@ -8,32 +8,25 @@ Backend de la demo de **PO-01 Recepción y acondicionamiento de maíz** y su kar
 
 Java 17, Spring Boot 3, API REST, Spring Security con JWT, JDBC y PostgreSQL 16. La recepción y su entrada al kardex, la finalización de un lote y la confirmación de un despacho se ejecutan cada una en **una transacción**.
 
-### PO-01: Clean Architecture
+### Clean Architecture: PO-01, producción y ventas
 
-PO-01 (recepción de maíz, proveedores y kardex de maíz) está organizado en cuatro capas globales. La guía completa, con diagrama y el recorrido de `POST /api/recepciones`, está en [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md).
+PO-01 (recepción de maíz, proveedores y kardex de maíz), la producción por lote y los pedidos y despachos están organizados en cuatro capas globales. La guía completa, con diagrama y el recorrido de `POST /api/recepciones`, está en [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md).
 
 | Capa | Paquete | Contenido |
 |---|---|---|
-| Dominio | `domain/` | Entidades y reglas en Java puro: pesos, merma, humedad, datos del proveedor, formato del CSV del kardex |
-| Aplicación | `application/` | Casos de uso (interactores) sin Spring, sus interfaces de entrada, los `gateway` que necesitan y las fallas de negocio |
-| Presentación | `presentation/rest/` | Controladores con `@PreAuthorize`, DTO de request y response, mappers y traducción de fallas a HTTP |
-| Infraestructura | `infrastructure/` | Gateways JDBC, actor tomado del JWT y `config/Po01UseCaseConfig`, que crea los casos de uso y los envuelve en una transacción |
+| Dominio | `domain/{recepcion,proveedor,inventario,produccion,ventas}` | Entidades y reglas en Java puro: humedad y merma, tamaños de lote, estados de pedido y despacho, destino del reparto, CSV del kardex |
+| Aplicación | `application/` | Casos de uso sin Spring, sus interfaces de entrada, los `gateway` que necesitan y las fallas de negocio |
+| Presentación | `presentation/rest/` | Controladores con `@PreAuthorize`, DTO, mappers y traducción de fallas a HTTP |
+| Infraestructura | `infrastructure/` | Gateways JDBC, actor tomado del JWT y `config/`: los composition roots y `Transacciones`, que envuelve cada caso de uso en una transacción (`Consultar*` de solo lectura) |
 
-Regla de dependencias: `presentation → application → domain ← application ← infrastructure`. `ArquitecturaLimpiaTest` (ArchUnit) la verifica en cada `mvn verify`. Las rutas, los JSON y los permisos no cambiaron respecto de la versión hexagonal.
+Regla de dependencias: `presentation → application → domain ← application ← infrastructure`. `ArquitecturaLimpiaTest` (ArchUnit) la verifica en cada `mvn verify`. Las rutas, los JSON, los permisos y las reglas de negocio no cambiaron respecto de la versión hexagonal.
 
-`auth`, `comun`, `inventario` (stock general y ajustes), `maestros` y `operaciones` mantienen controlador → servicio → repositorio, y `produccion` y `ventas` siguen en hexagonal. Su migración es la fase 2.
+Transacciones que siguen siendo una sola unidad:
+- **Recepción:** registrar, decidir o corregir guarda la recepción, su entrada al kardex y la bitácora.
+- **Finalizar un lote:** bloquea el lote, valida que tenga todos los insumos de la fórmula, descuenta la cantidad real (o la calculada si falta), registra el producto terminado, cambia el estado y escribe la bitácora. Si algo falla (por ejemplo, stock insuficiente), no queda ningún movimiento.
+- **Confirmar un despacho:** bloquea despacho y pedido, comprueba que el pedido lo admita y que no se excedan sus productos y cantidades, e invoca `confirmar_despacho` de la base, que valida el stock, registra las salidas al kardex y actualiza ambos estados.
 
-### Producción por lote: estructura hexagonal
-
-`produccion/domain` define el lote, sus insumos, estados y reglas. `produccion/application` contiene los casos de uso para consultar, planificar, gestionar insumos, cambiar estado y finalizar. Los puertos de salida expresan las operaciones necesarias de lotes, catálogo, inventario y bitácora; `adapter/out/jdbc` las implementa. `adapter/in/web` conserva `/api/lotes` y los DTO de Swagger. `OperacionService` continúa atendiendo fórmulas, pedidos y despachos.
-
-La finalización bloquea el lote y, en una transacción, valida que tenga todos los insumos de la fórmula, descuenta la cantidad real (o la calculada si falta), registra el producto terminado, cambia el estado y escribe la bitácora. Las modificaciones de lotes e insumos bloquean el mismo registro para serializarse con la finalización. Las rutas y los campos JSON públicos no cambiaron.
-
-### Pedidos y despachos: estructura hexagonal
-
-`ventas/domain` contiene pedido, despacho, detalles, estados y reglas de entrega. `ventas/application` separa consultas, CRUD, cambios de estado y confirmación; sus puertos describen las operaciones necesarias sobre pedidos, despachos, catálogo y bitácora. `adapter/in/web` conserva `/api/pedidos` y `/api/despachos`, y `adapter/out/jdbc` implementa los puertos. `OperacionService` queda dedicado a fórmulas.
-
-La confirmación bloquea despacho y pedido, comprueba que el pedido admita la operación y que los productos y cantidades del despacho no excedan el pedido. El adaptador JDBC invoca `confirmar_despacho` de la base, que valida el stock, registra las salidas al kardex y actualiza ambos estados. La bitácora participa en la misma transacción. Las rutas y los DTO públicos no cambiaron.
+`auth`, `comun`, `inventario` (stock general y ajustes), `maestros` y `operaciones` (fórmulas) mantienen controlador → servicio → repositorio. Su migración es la fase siguiente.
 
 La única definición de tablas activa es `db/init/001_moliselva.sql` de Rómulo (17 tablas, esquema `moliselva`), copiada en este repositorio sin modificar. Las actualizaciones `002_po01_merma_bitacora.sql` y `003_recepcion_id_registra.sql` sirven para bases creadas antes del 26 de octubre y del 9 de noviembre; la instalación nueva ya contiene esos cambios. Ver [`db/README.md`](db/README.md). El backend no ejecuta Flyway ni crea tablas paralelas. Se conecta a `jdbc:postgresql://db:5432/moliselva_demo?currentSchema=moliselva` en Compose.
 

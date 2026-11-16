@@ -10,7 +10,7 @@ Las salidas no contienen `DEMO_PASSWORD`, `POSTGRES_PASSWORD`, `JWT_SECRET` ni t
 docker run --rm -e TZ=America/Lima -v "${PWD}:/app" -v moliselva-m2:/root/.m2 -w /app maven:3.9-eclipse-temurin-17 mvn -B verify
 ```
 
-Resultado: `BUILD SUCCESS`, **124 pruebas, 0 fallos y 0 errores** (antes eran 106).
+Resultado de la primera etapa: `BUILD SUCCESS`, **124 pruebas, 0 fallos y 0 errores** (antes eran 106). Con la segunda etapa (sección 4) son 157.
 
 | Clase | Pruebas | Cambio |
 |---|---:|---|
@@ -43,4 +43,25 @@ Proyecto `docker compose -p moliselva-clean` con base desde cero. El volumen de 
 | `smoke-po01.ps1` | 51 OK | [smoke-po01-clean-2026-11-16.txt](smoke-po01-clean-2026-11-16.txt) |
 | `smoke-crud.ps1` | 116 OK, con un ajuste (ver nota) | [smoke-crud-clean-2026-11-16.txt](smoke-crud-clean-2026-11-16.txt) |
 
-**Nota sobre `smoke-crud.ps1`.** Su línea 118 espera que el operario consulte un insumo del lote (`GET /api/lotes/{id}/insumos/{insumoId}` → 200). El commit `3c0aae6` de `feat/frontend-completo`, anterior a esta rama, restringió esa ruta a JEFE_PLANTA, así que el script ya fallaba sobre esa rama. Esta rama no modifica `produccion` (`git diff 3c0aae6 -- produccion` está vacío). Para completar la verificación se ejecutó una copia del script con esa línea reemplazada por dos comprobaciones: operario → 403 y jefe → 200. El script del repositorio no se modificó aquí; su ajuste corresponde al commit `3c0aae6`.
+**Nota sobre `smoke-crud.ps1`.** Su línea 118 espera que el operario consulte un insumo del lote (`GET /api/lotes/{id}/insumos/{insumoId}` → 200). El commit `3c0aae6` de `feat/frontend-completo`, anterior a esta rama, restringió esa ruta a JEFE_PLANTA, así que el script ya fallaba sobre esa rama. Esta rama no cambia esa regla: el `@PreAuthorize("hasRole('JEFE_PLANTA')")` de esas rutas sigue idéntico en `presentation/rest/produccion/LoteController`. Para completar la verificación se ejecutó una copia del script con esa línea reemplazada por dos comprobaciones: operario → 403 y jefe → 200. El script del repositorio no se modificó aquí; su ajuste corresponde al commit `3c0aae6`.
+
+## 4. Segunda etapa: producción y ventas
+
+Mismo día, misma rama. `produccion` y `ventas` pasaron de hexagonal a las cuatro capas: `domain/{produccion,ventas}`, `application/{produccion,ventas}/{usecase,gateway}`, `presentation/rest/{produccion,ventas}` e `infrastructure/persistence/jdbc/{produccion,ventas}`. Los composition roots son `ProduccionUseCaseConfig` y `VentasUseCaseConfig`.
+
+**Reglas de negocio sin cambios.** `LotePolicy`, `DespachoPolicy`, `LoteChecks`, `VentaChecks` y los casos de uso conservan su lógica línea por línea. Se comparó cada archivo contra `3c0aae6` descontando paquete, imports, `@Service`, `@Transactional` y el renombre de puertos: **51 de 51 archivos de dominio, casos de uso y gateways son idénticos**. Las rutas, `@PreAuthorize` y `@ResponseStatus` de `LoteController`, `PedidoController` y `DespachoController` también son idénticos (18 anotaciones en cada uno); el controlador ahora obtiene el usuario con `ActorActual` en lugar de leer el JWT. Solo se quitaron `@Service` y `@Transactional` y se renombraron los puertos (`*Port` → `*Gateway`). `ProduccionFailure` y `VentaFailure` heredan de `FallaNegocio` y responden con el mismo HTTP y el mismo `codigo` (antes los traducía `comun.ApiErrors`).
+
+**Transacciones sin cambios.** `infrastructure/config/Transacciones` envuelve cada caso de uso en un proxy con `TransactionInterceptor`: las interfaces `Consultar*` son de solo lectura y las demás de escritura, con reversión ante cualquier excepción, igual que las anotaciones que reemplaza. PO-01 también usa este envoltorio.
+
+| Verificación | Resultado |
+|---|---|
+| `mvn -B verify` | BUILD SUCCESS, **157 pruebas** (124 + 33 nuevas), 0 fallos |
+| Nuevas: `LotePolicyTest` (23), `DespachoPolicyTest` (7), `TransaccionesTest` (3) | Tamaños de lote, cálculo de kg por porcentaje, estados editables, pedido que admite despacho o cancelación, destino del reparto; commit, reversión y solo lectura |
+| `FinalizarLoteTest`, `ConfirmarDespachoTest` | Solo cambian paquete, imports y nombres de tipo; aserciones idénticas |
+| `/v3/api-docs` contra la línea base de `3c0aae6` | 48 rutas, 33 esquemas, **0 diferencias** |
+| `smoke-po01.ps1` (base nueva) | 51 OK |
+| `smoke-crud.ps1` (base nueva) | 116 OK, con el mismo ajuste de la línea 118 |
+
+`smoke-crud.ps1` incluye la comprobación transaccional más fuerte contra PostgreSQL real: «finalización fallida no deja movimientos ni cambia estado». Un lote con consumo mayor al stock responde 409 `STOCK_INSUFICIENTE`, no deja movimientos en el kardex y sigue EN_PROCESO; después se finaliza con una salida y una entrada. También cubre el CRUD completo de lotes, pedidos, despachos y sus detalles, los cambios de estado, la confirmación del despacho con salida de stock y los rechazos (despacho que excede el pedido, lote finalizado dos veces, eliminación de registros cerrados).
+
+Las salidas de los humos de esta sección reemplazan a las de la sección 3, porque corresponden al código final de la rama.
