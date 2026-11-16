@@ -6,13 +6,22 @@ Backend de la demo de **PO-01 Recepción y acondicionamiento de maíz** y su kar
 
 ## Arquitectura y datos
 
-Java 17, Spring Boot 3, API REST, Spring Security con JWT, JDBC y PostgreSQL 16. El código está dividido en `auth`, `proveedor`, `maestros`, `recepcion`, `operaciones`, `inventario` y `comun`. La recepción y su entrada al kardex, la finalización de un lote y la confirmación de un despacho se ejecutan cada una en **una transacción**.
+Java 17, Spring Boot 3, API REST, Spring Security con JWT, JDBC y PostgreSQL 16. La recepción y su entrada al kardex, la finalización de un lote y la confirmación de un despacho se ejecutan cada una en **una transacción**.
 
-### Recepción: estructura hexagonal
+### PO-01: Clean Architecture
 
-`recepcion/domain` contiene las reglas de peso, merma y humedad y los datos del proceso. `recepcion/application` divide el flujo en cinco casos de uso: registrar, decidir, corregir, eliminar y consultar. Sus interfaces en `port/in` son las operaciones disponibles para la API; las de `port/out` expresan qué necesitan esos casos de uso de recepción, proveedores, inventario y bitácora. `adapter/in/web` convierte HTTP y DTO a esos datos; `adapter/out/jdbc` implementa los puertos de salida con las consultas SQL y los repositorios existentes.
+PO-01 (recepción de maíz, proveedores y kardex de maíz) está organizado en cuatro capas globales. La guía completa, con diagrama y el recorrido de `POST /api/recepciones`, está en [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md).
 
-La dirección de dependencias es `web → port/in → application → port/out ← jdbc`. Registrar y decidir mantienen en una sola transacción la recepción, su movimiento de inventario cuando corresponde y la bitácora. Las rutas y los DTO públicos de recepción no cambiaron.
+| Capa | Paquete | Contenido |
+|---|---|---|
+| Dominio | `domain/` | Entidades y reglas en Java puro: pesos, merma, humedad, datos del proveedor, formato del CSV del kardex |
+| Aplicación | `application/` | Casos de uso (interactores) sin Spring, sus interfaces de entrada, los `gateway` que necesitan y las fallas de negocio |
+| Presentación | `presentation/rest/` | Controladores con `@PreAuthorize`, DTO de request y response, mappers y traducción de fallas a HTTP |
+| Infraestructura | `infrastructure/` | Gateways JDBC, actor tomado del JWT y `config/Po01UseCaseConfig`, que crea los casos de uso y los envuelve en una transacción |
+
+Regla de dependencias: `presentation → application → domain ← application ← infrastructure`. `ArquitecturaLimpiaTest` (ArchUnit) la verifica en cada `mvn verify`. Las rutas, los JSON y los permisos no cambiaron respecto de la versión hexagonal.
+
+`auth`, `comun`, `inventario` (stock general y ajustes), `maestros` y `operaciones` mantienen controlador → servicio → repositorio, y `produccion` y `ventas` siguen en hexagonal. Su migración es la fase 2.
 
 ### Producción por lote: estructura hexagonal
 
