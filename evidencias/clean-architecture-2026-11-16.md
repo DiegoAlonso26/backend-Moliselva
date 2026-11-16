@@ -65,3 +65,36 @@ Mismo día, misma rama. `produccion` y `ventas` pasaron de hexagonal a las cuatr
 `smoke-crud.ps1` incluye la comprobación transaccional más fuerte contra PostgreSQL real: «finalización fallida no deja movimientos ni cambia estado». Un lote con consumo mayor al stock responde 409 `STOCK_INSUFICIENTE`, no deja movimientos en el kardex y sigue EN_PROCESO; después se finaliza con una salida y una entrada. También cubre el CRUD completo de lotes, pedidos, despachos y sus detalles, los cambios de estado, la confirmación del despacho con salida de stock y los rechazos (despacho que excede el pedido, lote finalizado dos veces, eliminación de registros cerrados).
 
 Las salidas de los humos de esta sección reemplazan a las de la sección 3, porque corresponden al código final de la rama.
+
+## 5. Tercera etapa: el resto del backend
+
+Mismo día, misma rama. `auth`, `comun`, `maestros`, `operaciones` (fórmulas), `inventario` (stock general, movimientos y ajustes) y `service` dejaron de existir como paquetes legados. Sus reglas pasaron a casos de uso sin Spring y sus detalles técnicos a `infrastructure` y `presentation`:
+
+| Antes | Ahora |
+|---|---|
+| `AuthService`, `AuthRepository`, `DemoPasswordInitializer` | `IniciarSesion`, `ConsultarUsuarios`, `GestionarUsuarios`, `ConsultarRoles`, `ActivarUsuariosDemo`; `JdbcUsuarioGateway`, `JdbcRolGateway`, `JwtEmisorToken`, `BCryptCifradorClaves`, `UsuariosDemoInicializador` |
+| `MaestrosService`, `MaestrosRepository` | `ConsultarMaestros`, `GestionarClientes`, `GestionarInsumos`, `GestionarProductos`; la normalización (trim, vacíos a null, `kg`, «Saco de 40 kg») está en los `*Datos` del dominio |
+| `OperacionService` | `ConsultarFormulas`, `GestionarFormulas`, `GestionarDetallesFormula`, `JdbcFormulaGateway` |
+| `InventarioService` (general) | `ConsultarInventario`, `RegistrarAjuste`; la traducción de «Stock insuficiente» pasa a `JdbcInventarioGateway` |
+| `comun`: `SecurityConfig`, `ApiErrors`, `OpenApiConfig`, bitácora | `infrastructure/security/SecurityConfig`, `presentation/rest/error/ManejadorErroresGenerales`, `presentation/rest/config/OpenApiConfig`, `ConsultarBitacora` y `JdbcBitacoraGateway` |
+| `service/BusinessRules` | `domain/reglas/BusinessRules` |
+| `ApiException` (HTTP dentro de los servicios) | Eliminada: las fallas son `FallaNegocio` (nuevo tipo `NO_AUTENTICADO` → 401) |
+
+El SQL es el mismo y el orden de las validaciones también. Por ejemplo, desactivar un insumo comprueba, en este orden, Maíz protegido, stock en cero, uso activo y existencia. `ArquitecturaLimpiaTest` ahora exige que **toda clase esté en una de las cuatro capas**: en la raíz solo queda `MoliselvaApplication`.
+
+| Verificación | Resultado |
+|---|---|
+| `mvn -B verify` | BUILD SUCCESS, **185 pruebas**, 0 fallos |
+| Nuevas pruebas de casos de uso | `AuthUseCaseTest` (6), `MaestrosUseCaseTest` (7), `FormulasUseCaseTest` (6), `AjusteInventarioUseCaseTest` (8) y una regla ArchUnit más (9 en total) |
+| `Po01SecurityTest` | Se movió a `presentation/rest`. Cambian imports y mocks (`UsuarioGateway` en lugar de `AuthRepository`, `IniciarSesionUseCase` en lugar de `AuthService`, `ConsultarBitacoraUseCase` en lugar de `BitacoraService`). Las 56 expectativas no cambian |
+| `/v3/api-docs` contra `3c0aae6` | 48 rutas, 33 esquemas, **0 diferencias** |
+| `smoke-po01.ps1` / `smoke-crud.ps1` (base nueva) | 51 OK / 116 OK (con el ajuste de la línea 118) |
+
+### Comparación de respuestas reales: versión anterior y versión nueva
+
+Se levantaron las dos API **contra la misma base**: la imagen anterior (código de `3c0aae6`) en el puerto 8081 y esta rama en el 8080. Después de los humos, que dejan datos en todos los módulos, se enviaron las mismas 65 peticiones a ambas y se compararon estado HTTP y cuerpo. Salida: [comparacion-respuestas-2026-11-16.txt](comparacion-respuestas-2026-11-16.txt).
+
+- **65/65 respuestas con el mismo estado y el mismo contenido JSON.**
+- **35 idénticas byte a byte:** todas las lecturas de todos los módulos (usuarios, roles, proveedores, clientes, insumos, productos, fórmulas y sus detalles, lotes e insumos, pedidos, despachos y sus detalles, stock, movimientos, kardex, recepciones y bitácora) y el CSV del kardex.
+- **30 respuestas de error (400, 401, 403, 404 y 409) solo cambian el orden de `codigo` y `mensaje`.** Esos cuerpos se arman con `Map.of`, cuyo orden de iteración Java aleatoriza en cada arranque de la JVM. Pasa también en el 401 de `SecurityConfig`, que no cambió, y no tiene significado en JSON.
+- Los casos de error ejercitan reglas sin modificar datos: Maíz protegido al editar o desactivar, el administrador que intenta quitarse el rol o desactivarse, rol desconocido, ajuste con dos ítems o sin ítem, insumo de la ruta distinto del cuerpo, fórmula o despacho inexistentes, lote de 750 kg, rutas sin permiso, login con clave incorrecta y petición sin token.

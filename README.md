@@ -8,25 +8,23 @@ Backend de la demo de **PO-01 Recepción y acondicionamiento de maíz** y su kar
 
 Java 17, Spring Boot 3, API REST, Spring Security con JWT, JDBC y PostgreSQL 16. La recepción y su entrada al kardex, la finalización de un lote y la confirmación de un despacho se ejecutan cada una en **una transacción**.
 
-### Clean Architecture: PO-01, producción y ventas
+### Clean Architecture
 
-PO-01 (recepción de maíz, proveedores y kardex de maíz), la producción por lote y los pedidos y despachos están organizados en cuatro capas globales. La guía completa, con diagrama y el recorrido de `POST /api/recepciones`, está en [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md).
+Todo el backend está organizado en cuatro capas globales: PO-01 (recepción de maíz, proveedores y kardex de maíz), producción por lote, pedidos y despachos, autenticación y usuarios, clientes, insumos y productos, fórmulas, inventario general y bitácora. La guía completa, con diagrama y el recorrido de `POST /api/recepciones`, está en [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md).
 
 | Capa | Paquete | Contenido |
 |---|---|---|
-| Dominio | `domain/{recepcion,proveedor,inventario,produccion,ventas}` | Entidades y reglas en Java puro: humedad y merma, tamaños de lote, estados de pedido y despacho, destino del reparto, CSV del kardex |
+| Dominio | `domain/{recepcion,proveedor,inventario,produccion,ventas,auth,maestros,formulas,reglas}` | Entidades y reglas en Java puro: humedad y merma, tamaños de lote, estados de pedido y despacho, destino del reparto, CSV del kardex, normalización de datos maestros, insumo Maíz protegido, ajuste con un solo ítem |
 | Aplicación | `application/` | Casos de uso sin Spring, sus interfaces de entrada, los `gateway` que necesitan y las fallas de negocio |
-| Presentación | `presentation/rest/` | Controladores con `@PreAuthorize`, DTO, mappers y traducción de fallas a HTTP |
-| Infraestructura | `infrastructure/` | Gateways JDBC, actor tomado del JWT y `config/`: los composition roots y `Transacciones`, que envuelve cada caso de uso en una transacción (`Consultar*` de solo lectura) |
+| Presentación | `presentation/rest/` | Controladores con `@PreAuthorize`, DTO, mappers, traducción de fallas a HTTP (`error/`) y OpenAPI (`config/`) |
+| Infraestructura | `infrastructure/` | Gateways JDBC, seguridad (`SecurityConfig`, JWT, BCrypt, actor del token) y `config/`: los composition roots, `Transacciones` (`Consultar*` de solo lectura) y la activación de usuarios demo |
 
-Regla de dependencias: `presentation → application → domain ← application ← infrastructure`. `ArquitecturaLimpiaTest` (ArchUnit) la verifica en cada `mvn verify`. Las rutas, los JSON, los permisos y las reglas de negocio no cambiaron respecto de la versión hexagonal.
+Regla de dependencias: `presentation → application → domain ← application ← infrastructure`. `ArquitecturaLimpiaTest` (ArchUnit) la verifica en cada `mvn verify` y exige que toda clase pertenezca a una de las cuatro capas. Las rutas, los JSON, los permisos y las reglas de negocio no cambiaron respecto de la versión hexagonal.
 
 Transacciones que siguen siendo una sola unidad:
 - **Recepción:** registrar, decidir o corregir guarda la recepción, su entrada al kardex y la bitácora.
 - **Finalizar un lote:** bloquea el lote, valida que tenga todos los insumos de la fórmula, descuenta la cantidad real (o la calculada si falta), registra el producto terminado, cambia el estado y escribe la bitácora. Si algo falla (por ejemplo, stock insuficiente), no queda ningún movimiento.
 - **Confirmar un despacho:** bloquea despacho y pedido, comprueba que el pedido lo admita y que no se excedan sus productos y cantidades, e invoca `confirmar_despacho` de la base, que valida el stock, registra las salidas al kardex y actualiza ambos estados.
-
-`auth`, `comun`, `inventario` (stock general y ajustes), `maestros` y `operaciones` (fórmulas) mantienen controlador → servicio → repositorio. Su migración es la fase siguiente.
 
 La única definición de tablas activa es `db/init/001_moliselva.sql` de Rómulo (17 tablas, esquema `moliselva`), copiada en este repositorio sin modificar. Las actualizaciones `002_po01_merma_bitacora.sql` y `003_recepcion_id_registra.sql` sirven para bases creadas antes del 26 de octubre y del 9 de noviembre; la instalación nueva ya contiene esos cambios. Ver [`db/README.md`](db/README.md). El backend no ejecuta Flyway ni crea tablas paralelas. Se conecta a `jdbc:postgresql://db:5432/moliselva_demo?currentSchema=moliselva` en Compose.
 
@@ -40,7 +38,7 @@ El `Dockerfile` construye la aplicación y ejecuta las pruebas de Maven. `compos
 4. Desde la raíz del repositorio, ejecutar `docker compose up -d --build`.
 5. La API queda en `http://localhost:8080/api`. En un volumen nuevo, PostgreSQL ejecuta los scripts de `db/init/`. Si el volumen se creó antes del 9 de noviembre de 2026, aplicar `003` con el comando de [`db/README.md`](db/README.md). No usar `docker compose down -v` si se desean conservar datos.
 
-Al iniciar, `DemoPasswordInitializer` reemplaza `HASH_DEMO_REEMPLAZAR` de los cuatro usuarios de prueba por un hash BCrypt de `DEMO_PASSWORD`. Solo modifica esas filas con marcador; no restablece contraseñas ya configuradas.
+Al iniciar, `UsuariosDemoInicializador` (caso de uso `ActivarUsuariosDemo`) reemplaza `HASH_DEMO_REEMPLAZAR` de los cuatro usuarios de prueba por un hash BCrypt de `DEMO_PASSWORD`. Solo modifica esas filas con marcador; no restablece contraseñas ya configuradas.
 
 ## Contrato API
 
