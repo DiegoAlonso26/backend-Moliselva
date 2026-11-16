@@ -3,14 +3,14 @@ package pe.edu.upeu.moliselva.infrastructure.persistence.jdbc.produccion;
 import java.math.BigDecimal;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Repository;
-import pe.edu.upeu.moliselva.operaciones.OperacionRepository;
+import pe.edu.upeu.moliselva.infrastructure.persistence.jdbc.shared.JdbcFilas;
 import pe.edu.upeu.moliselva.application.produccion.usecase.ProduccionFailure;
 import pe.edu.upeu.moliselva.application.produccion.gateway.InventarioProduccionGateway;
 
 @Repository
 public class JdbcInventarioProduccionGateway implements InventarioProduccionGateway {
-    private final OperacionRepository db;
-    public JdbcInventarioProduccionGateway(OperacionRepository db) { this.db=db; }
+    private final JdbcFilas db;
+    public JdbcInventarioProduccionGateway(JdbcFilas db) { this.db=db; }
     @Override public boolean tieneMovimientos(long idLote) {
         return db.one("SELECT 1 FROM movimiento_inventario WHERE id_lote=?",idLote).isPresent();
     }

@@ -26,6 +26,7 @@ public class ManejadorFallasNegocio {
 
     static HttpStatus estado(FallaNegocio.Tipo tipo) {
         return switch (tipo) {
+            case NO_AUTENTICADO -> HttpStatus.UNAUTHORIZED;
             case SIN_PERMISO -> HttpStatus.FORBIDDEN;
             case DATOS_INVALIDOS -> HttpStatus.BAD_REQUEST;
             case NO_ENCONTRADO -> HttpStatus.NOT_FOUND;

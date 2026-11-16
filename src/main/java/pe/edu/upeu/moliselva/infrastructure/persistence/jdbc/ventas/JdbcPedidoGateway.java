@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.springframework.stereotype.Repository;
-import pe.edu.upeu.moliselva.operaciones.OperacionRepository;
+import pe.edu.upeu.moliselva.infrastructure.persistence.jdbc.shared.JdbcFilas;
 import pe.edu.upeu.moliselva.application.ventas.gateway.PedidoGateway;
 import pe.edu.upeu.moliselva.domain.ventas.DatosDetalle;
 import pe.edu.upeu.moliselva.domain.ventas.DatosPedido;
@@ -16,8 +16,8 @@ import pe.edu.upeu.moliselva.domain.ventas.PedidoDetalle;
 
 @Repository
 public class JdbcPedidoGateway implements PedidoGateway {
-    private final OperacionRepository db;
-    public JdbcPedidoGateway(OperacionRepository db) { this.db=db; }
+    private final JdbcFilas db;
+    public JdbcPedidoGateway(JdbcFilas db) { this.db=db; }
     private static Pedido pedido(Map<String,Object> row) {
         return new Pedido(((Number)row.get("id_pedido")).longValue(),
             ((Number)row.get("id_cliente")).longValue(),

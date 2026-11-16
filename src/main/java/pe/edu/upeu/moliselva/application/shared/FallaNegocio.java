@@ -5,7 +5,7 @@ package pe.edu.upeu.moliselva.application.shared;
  * según su {@link Tipo}; el {@link #codigo()} viaja tal cual en el JSON.
  */
 public abstract class FallaNegocio extends RuntimeException {
-    public enum Tipo { SIN_PERMISO, DATOS_INVALIDOS, NO_ENCONTRADO, CONFLICTO }
+    public enum Tipo { NO_AUTENTICADO, SIN_PERMISO, DATOS_INVALIDOS, NO_ENCONTRADO, CONFLICTO }
 
     protected FallaNegocio(String mensaje) {
         super(mensaje);

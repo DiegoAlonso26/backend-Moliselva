@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.springframework.stereotype.Repository;
-import pe.edu.upeu.moliselva.operaciones.OperacionRepository;
+import pe.edu.upeu.moliselva.infrastructure.persistence.jdbc.shared.JdbcFilas;
 import pe.edu.upeu.moliselva.application.produccion.gateway.LoteGateway;
 import pe.edu.upeu.moliselva.domain.produccion.DatosInsumo;
 import pe.edu.upeu.moliselva.domain.produccion.DatosLote;
@@ -16,8 +16,8 @@ import pe.edu.upeu.moliselva.domain.produccion.LoteInsumo;
 
 @Repository
 public class JdbcLoteGateway implements LoteGateway {
-    private final OperacionRepository db;
-    public JdbcLoteGateway(OperacionRepository db) { this.db=db; }
+    private final JdbcFilas db;
+    public JdbcLoteGateway(JdbcFilas db) { this.db=db; }
 
     private static Lote lote(Map<String,Object> row) {
         return new Lote(((Number)row.get("id_lote")).longValue(),

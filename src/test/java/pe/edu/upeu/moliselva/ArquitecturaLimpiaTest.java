@@ -5,13 +5,13 @@ import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 /**
- * Regla de dependencias de Clean Architecture (PO-01, producción y ventas):
+ * Regla de dependencias de Clean Architecture para todo el backend:
  * presentation → application → domain y infrastructure → application → domain.
- * Los módulos legados (auth, comun, inventario, maestros, operaciones, service)
- * quedan fuera de las capas hasta la siguiente fase.
+ * Toda clase vive en una de las cuatro capas (salvo MoliselvaApplication).
  */
 @AnalyzeClasses(packages = "pe.edu.upeu.moliselva", importOptions = ImportOption.DoNotIncludeTests.class)
 class ArquitecturaLimpiaTest {
@@ -20,10 +20,6 @@ class ArquitecturaLimpiaTest {
     private static final String APPLICATION = RAIZ + ".application..";
     private static final String PRESENTATION = RAIZ + ".presentation..";
     private static final String INFRASTRUCTURE = RAIZ + ".infrastructure..";
-    private static final String[] LEGADO = {
-        RAIZ + ".auth..", RAIZ + ".comun..", RAIZ + ".inventario..", RAIZ + ".maestros..",
-        RAIZ + ".operaciones..", RAIZ + ".service.."
-    };
     private static final String[] FRAMEWORKS = { "org.springframework..", "jakarta..", "io.swagger.." };
 
     @ArchTest
@@ -47,9 +43,14 @@ class ArquitecturaLimpiaTest {
         .because("application solo depende de domain");
 
     @ArchTest
-    static final ArchRule nucleoSinModulosLegados = noClasses().that().resideInAnyPackage(DOMAIN, APPLICATION)
-        .should().dependOnClassesThat().resideInAnyPackage(LEGADO)
-        .because("el núcleo de PO-01 no debe depender del código por migrar");
+    static final ArchRule todoEnUnaCapa = classes().should()
+        .resideInAnyPackage(DOMAIN, APPLICATION, PRESENTATION, INFRASTRUCTURE, RAIZ)
+        .because("no quedan módulos fuera de las cuatro capas; en la raíz solo está MoliselvaApplication");
+
+    @ArchTest
+    static final ArchRule raizSoloConLaAplicacion = classes().that().resideInAPackage(RAIZ)
+        .should().haveSimpleName("MoliselvaApplication")
+        .because("la raíz del paquete solo arranca Spring Boot");
 
     @ArchTest
     static final ArchRule presentacionNoConoceInfraestructura = noClasses().that().resideInAPackage(PRESENTATION)

@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Repository;
-import pe.edu.upeu.moliselva.operaciones.OperacionRepository;
+import pe.edu.upeu.moliselva.infrastructure.persistence.jdbc.shared.JdbcFilas;
 import pe.edu.upeu.moliselva.application.ventas.usecase.VentaFailure;
 import pe.edu.upeu.moliselva.application.ventas.gateway.DespachoGateway;
 import pe.edu.upeu.moliselva.domain.ventas.DatosDespacho;
@@ -19,8 +19,8 @@ import pe.edu.upeu.moliselva.domain.ventas.TipoEntrega;
 
 @Repository
 public class JdbcDespachoGateway implements DespachoGateway {
-    private final OperacionRepository db;
-    public JdbcDespachoGateway(OperacionRepository db) { this.db=db; }
+    private final JdbcFilas db;
+    public JdbcDespachoGateway(JdbcFilas db) { this.db=db; }
     private static Despacho despacho(Map<String,Object> row) {
         return new Despacho(((Number)row.get("id_despacho")).longValue(),
             ((Number)row.get("id_pedido")).longValue(),
