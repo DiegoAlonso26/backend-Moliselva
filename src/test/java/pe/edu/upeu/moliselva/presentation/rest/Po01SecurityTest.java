@@ -51,18 +51,24 @@ import pe.edu.upeu.moliselva.application.bitacora.usecase.ConsultarBitacoraUseCa
 import pe.edu.upeu.moliselva.infrastructure.security.SecurityConfig;
 import pe.edu.upeu.moliselva.presentation.rest.bitacora.BitacoraController;
 import pe.edu.upeu.moliselva.presentation.rest.error.ManejadorErroresGenerales;
-import pe.edu.upeu.moliselva.application.inventario.usecase.ConsultarKardexMaizUseCase;
-import pe.edu.upeu.moliselva.application.inventario.usecase.ExportarKardexMaizUseCase;
+import pe.edu.upeu.moliselva.application.inventario.kardex.exportar.ExportarKardexMaizCommand;
+import pe.edu.upeu.moliselva.application.inventario.kardex.exportar.ExportarKardexMaizResponse;
+import pe.edu.upeu.moliselva.application.inventario.kardex.listar.ListarKardexMaizQuery;
+import pe.edu.upeu.moliselva.application.inventario.kardex.stock.ConsultarStockMaizQuery;
+import pe.edu.upeu.moliselva.application.inventario.kardex.stock.StockMaizResponse;
 import pe.edu.upeu.moliselva.infrastructure.security.JwtActorActual;
 import pe.edu.upeu.moliselva.presentation.rest.inventario.KardexMaizController;
 import pe.edu.upeu.moliselva.presentation.rest.recepcion.RecepcionController;
-import pe.edu.upeu.moliselva.application.recepcion.usecase.ConsultarRecepcionUseCase;
-import pe.edu.upeu.moliselva.application.recepcion.usecase.CorregirRecepcionUseCase;
-import pe.edu.upeu.moliselva.application.recepcion.usecase.DecidirRecepcionUseCase;
-import pe.edu.upeu.moliselva.application.recepcion.usecase.EliminarRecepcionUseCase;
-import pe.edu.upeu.moliselva.application.recepcion.usecase.RegistrarRecepcionUseCase;
+import pe.edu.upeu.moliselva.application.recepcion.RecepcionResponse;
+import pe.edu.upeu.moliselva.application.recepcion.corregir.CorregirRecepcionCommand;
+import pe.edu.upeu.moliselva.application.recepcion.decidir.DecidirRecepcionCommand;
+import pe.edu.upeu.moliselva.application.recepcion.eliminar.EliminarRecepcionCommand;
+import pe.edu.upeu.moliselva.application.recepcion.listar.ListarRecepcionesQuery;
+import pe.edu.upeu.moliselva.application.recepcion.obtener.ObtenerRecepcionQuery;
+import pe.edu.upeu.moliselva.application.recepcion.registrar.RegistrarRecepcionCommand;
+import pe.edu.upeu.moliselva.application.shared.cqrs.Mediador;
 import pe.edu.upeu.moliselva.domain.recepcion.EstadoRecepcion;
-import pe.edu.upeu.moliselva.domain.recepcion.Recepcion;
+import org.mockito.ArgumentMatcher;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -91,13 +97,8 @@ class Po01SecurityTest {
     @MockitoBean IniciarSesionUseCase autenticacion;
     @MockitoBean ConsultarUsuariosUseCase consultarUsuarios;
     @MockitoBean GestionarUsuariosUseCase gestionarUsuarios;
-    @MockitoBean RegistrarRecepcionUseCase registrar;
-    @MockitoBean DecidirRecepcionUseCase decidir;
-    @MockitoBean CorregirRecepcionUseCase corregir;
-    @MockitoBean EliminarRecepcionUseCase eliminar;
-    @MockitoBean ConsultarRecepcionUseCase consultar;
-    @MockitoBean ConsultarKardexMaizUseCase kardex;
-    @MockitoBean ExportarKardexMaizUseCase exportarKardex;
+    /** Recepción y kardex de maíz envían sus commands y queries al mediador. */
+    @MockitoBean Mediador mediador;
     @MockitoBean ConsultarBitacoraUseCase bitacora;
 
     @MockitoBean ConsultarLotesUseCase consultarLotes;
@@ -106,22 +107,41 @@ class Po01SecurityTest {
     @MockitoBean CambiarEstadoLoteUseCase estadoLotes;
     @MockitoBean FinalizarLoteUseCase finalizarLotes;
 
+    private static final ArgumentMatcher<ExportarKardexMaizCommand> EXPORTA_USUARIO_7 =
+        de(ExportarKardexMaizCommand.class, command -> command.actor() != null && command.actor().id() == 7);
+
+    private static final ArgumentMatcher<DecidirRecepcionCommand> DECIDE_11 =
+        de(DecidirRecepcionCommand.class, command -> command.idRecepcion() == 11);
+    private static final ArgumentMatcher<CorregirRecepcionCommand> CORRIGE_11 =
+        de(CorregirRecepcionCommand.class, command -> command.idRecepcion() == 11);
+    private static final ArgumentMatcher<EliminarRecepcionCommand> ELIMINA_11 =
+        de(EliminarRecepcionCommand.class, command -> command.idRecepcion() == 11);
+
+    /** Matcher que solo considera peticiones del tipo indicado (el mediador recibe varios tipos). */
+    private static <C> ArgumentMatcher<C> de(Class<C> tipo, java.util.function.Predicate<C> condicion) {
+        return new ArgumentMatcher<>() {
+            @Override public boolean matches(C peticion) { return tipo.isInstance(peticion) && condicion.test(peticion); }
+            @Override public Class<?> type() { return tipo; }
+        };
+    }
+
     enum TokenInvalido { FIRMA_INCORRECTA, VENCIDO, USUARIO_INEXISTENTE, USUARIO_INACTIVO, SUJETO_DISTINTO }
 
     @BeforeEach
     void prepararRespuestasSinBaseDeDatos() {
-        var recepcion = new Recepcion(11, LocalDateTime.of(2026,11,3,12,0),7,"Proveedor de prueba",
+        var recepcion = new RecepcionResponse(11, LocalDateTime.of(2026,11,3,12,0),7,"Proveedor de prueba",
             new BigDecimal("1000"),new BigDecimal("100"),new BigDecimal("10"),
             new BigDecimal("890.00"),new BigDecimal("14.5"),new BigDecimal("10"),
             EstadoRecepcion.ACEPTADA,new BigDecimal("880.000"),"usuario_prueba",null);
-        when(registrar.registrar(any(),any())).thenReturn(recepcion);
-        when(decidir.decidir(anyLong(),any(),anyString(),any())).thenReturn(recepcion);
-        when(corregir.corregir(anyLong(),any(),any())).thenReturn(recepcion);
-        when(consultar.listar(any())).thenReturn(List.of(recepcion));
-        when(consultar.obtener(11)).thenReturn(recepcion);
-        when(kardex.movimientos()).thenReturn(List.of());
-        when(kardex.stockKg()).thenReturn(new BigDecimal("880.000"));
-        when(exportarKardex.exportar(argThat(actor -> actor != null && actor.id() == 7))).thenReturn("cantidadKg\n880.000\n".getBytes(StandardCharsets.UTF_8));
+        when(mediador.enviar(any(RegistrarRecepcionCommand.class))).thenReturn(recepcion);
+        when(mediador.enviar(any(DecidirRecepcionCommand.class))).thenReturn(recepcion);
+        when(mediador.enviar(any(CorregirRecepcionCommand.class))).thenReturn(recepcion);
+        when(mediador.enviar(any(ListarRecepcionesQuery.class))).thenReturn(List.of(recepcion));
+        when(mediador.enviar(new ObtenerRecepcionQuery(11))).thenReturn(recepcion);
+        when(mediador.enviar(any(ListarKardexMaizQuery.class))).thenReturn(List.of());
+        when(mediador.enviar(any(ConsultarStockMaizQuery.class))).thenReturn(new StockMaizResponse(new BigDecimal("880.000")));
+        when(mediador.enviar(argThat(EXPORTA_USUARIO_7))).thenReturn(
+            new ExportarKardexMaizResponse("cantidadKg\n880.000\n".getBytes(StandardCharsets.UTF_8)));
         when(bitacora.recientes()).thenReturn(List.of());
     }
 
@@ -168,15 +188,18 @@ class Po01SecurityTest {
         } else {
             // Verificar que el permiso alcanzó el colaborador de la ruta concreta.
             switch (metodo+" "+ruta) {
-                case "POST /api/recepciones" -> verify(registrar).registrar(any(),any());
-                case "PATCH /api/recepciones/11/decision" -> verify(decidir).decidir(eq(11L),any(),anyString(),any());
-                case "PUT /api/recepciones/11" -> verify(corregir).corregir(eq(11L),any(),any());
-                case "DELETE /api/recepciones/11" -> verify(eliminar).eliminar(eq(11L),any());
-                case "GET /api/recepciones" -> verify(consultar).listar(any());
-                case "GET /api/recepciones/11" -> verify(consultar).obtener(11);
-                case "GET /api/inventario/maiz/kardex" -> verify(kardex).movimientos();
-                case "GET /api/inventario/maiz/stock" -> verify(kardex).stockKg();
-                case "GET /api/inventario/maiz/kardex/exportar" -> verify(exportarKardex).exportar(argThat(actor -> actor.id() == 7));
+                case "POST /api/recepciones" -> verify(mediador).enviar(any(RegistrarRecepcionCommand.class));
+                case "PATCH /api/recepciones/11/decision" -> verify(mediador).enviar(
+                    argThat(DECIDE_11));
+                case "PUT /api/recepciones/11" -> verify(mediador).enviar(
+                    argThat(CORRIGE_11));
+                case "DELETE /api/recepciones/11" -> verify(mediador).enviar(
+                    argThat(ELIMINA_11));
+                case "GET /api/recepciones" -> verify(mediador).enviar(any(ListarRecepcionesQuery.class));
+                case "GET /api/recepciones/11" -> verify(mediador).enviar(new ObtenerRecepcionQuery(11));
+                case "GET /api/inventario/maiz/kardex" -> verify(mediador).enviar(any(ListarKardexMaizQuery.class));
+                case "GET /api/inventario/maiz/stock" -> verify(mediador).enviar(any(ConsultarStockMaizQuery.class));
+                case "GET /api/inventario/maiz/kardex/exportar" -> verify(mediador).enviar(argThat(EXPORTA_USUARIO_7));
                 case "GET /api/bitacora" -> verify(bitacora).recientes();
                 default -> throw new AssertionError("Ruta de prueba sin verificación");
             }
@@ -281,6 +304,6 @@ class Po01SecurityTest {
     }
 
     private void sinInteraccionesDeNegocio() {
-        verifyNoInteractions(registrar,decidir,corregir,eliminar,consultar,kardex,exportarKardex,bitacora,autenticacion);
+        verifyNoInteractions(mediador,bitacora,autenticacion);
     }
 }

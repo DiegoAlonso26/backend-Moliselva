@@ -2,35 +2,34 @@ package pe.edu.upeu.moliselva.infrastructure.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import pe.edu.upeu.moliselva.application.inventario.gateway.KardexMaizGateway;
-import pe.edu.upeu.moliselva.application.inventario.usecase.ConsultarKardexMaiz;
-import pe.edu.upeu.moliselva.application.inventario.usecase.ConsultarKardexMaizUseCase;
-import pe.edu.upeu.moliselva.application.inventario.usecase.ExportarKardexMaiz;
-import pe.edu.upeu.moliselva.application.inventario.usecase.ExportarKardexMaizUseCase;
+import pe.edu.upeu.moliselva.application.inventario.gateway.KardexMaizConsultaGateway;
+import pe.edu.upeu.moliselva.application.inventario.kardex.exportar.ExportarKardexMaizHandler;
+import pe.edu.upeu.moliselva.application.inventario.kardex.listar.ListarKardexMaizHandler;
+import pe.edu.upeu.moliselva.application.inventario.kardex.stock.ConsultarStockMaizHandler;
 import pe.edu.upeu.moliselva.application.proveedor.gateway.ProveedorGateway;
 import pe.edu.upeu.moliselva.application.proveedor.usecase.ConsultarProveedores;
 import pe.edu.upeu.moliselva.application.proveedor.usecase.ConsultarProveedoresUseCase;
 import pe.edu.upeu.moliselva.application.proveedor.usecase.GestionarProveedor;
 import pe.edu.upeu.moliselva.application.proveedor.usecase.GestionarProveedorUseCase;
+import pe.edu.upeu.moliselva.application.recepcion.corregir.CorregirRecepcionHandler;
+import pe.edu.upeu.moliselva.application.recepcion.decidir.DecidirRecepcionHandler;
+import pe.edu.upeu.moliselva.application.recepcion.eliminar.EliminarRecepcionHandler;
 import pe.edu.upeu.moliselva.application.recepcion.gateway.EntradaKardexGateway;
 import pe.edu.upeu.moliselva.application.recepcion.gateway.ProveedorActivoGateway;
+import pe.edu.upeu.moliselva.application.recepcion.gateway.RecepcionConsultaGateway;
 import pe.edu.upeu.moliselva.application.recepcion.gateway.RecepcionGateway;
-import pe.edu.upeu.moliselva.application.recepcion.usecase.ConsultarRecepcion;
-import pe.edu.upeu.moliselva.application.recepcion.usecase.ConsultarRecepcionUseCase;
-import pe.edu.upeu.moliselva.application.recepcion.usecase.CorregirRecepcion;
-import pe.edu.upeu.moliselva.application.recepcion.usecase.CorregirRecepcionUseCase;
-import pe.edu.upeu.moliselva.application.recepcion.usecase.DecidirRecepcion;
-import pe.edu.upeu.moliselva.application.recepcion.usecase.DecidirRecepcionUseCase;
-import pe.edu.upeu.moliselva.application.recepcion.usecase.EliminarRecepcion;
-import pe.edu.upeu.moliselva.application.recepcion.usecase.EliminarRecepcionUseCase;
-import pe.edu.upeu.moliselva.application.recepcion.usecase.RegistrarRecepcion;
-import pe.edu.upeu.moliselva.application.recepcion.usecase.RegistrarRecepcionUseCase;
+import pe.edu.upeu.moliselva.application.recepcion.listar.ListarRecepcionesHandler;
+import pe.edu.upeu.moliselva.application.recepcion.obtener.ObtenerRecepcionHandler;
+import pe.edu.upeu.moliselva.application.recepcion.registrar.RegistrarRecepcionHandler;
 import pe.edu.upeu.moliselva.application.shared.BitacoraGateway;
 
 /**
- * Composition root de PO-01: crea los casos de uso (Java puro) y los envuelve en una
- * transacción con {@link Transacciones}. Registrar, decidir y corregir siguen siendo
- * una sola transacción (recepción, entrada al kardex y bitácora).
+ * Composition root de PO-01. Crea los handlers (Java puro) como beans; el
+ * {@code MediadorSpring} los registra por el tipo de Command o Query que atienden y les
+ * aplica la transacción. Cada método devuelve la clase concreta para que Spring conserve
+ * el tipo genérico del handler.
+ * <p>
+ * Proveedores es un módulo simple: sigue con casos de uso envueltos por {@link Transacciones}.
  */
 @Configuration
 public class Po01UseCaseConfig {
@@ -39,33 +38,51 @@ public class Po01UseCaseConfig {
     public Po01UseCaseConfig(Transacciones tx) { this.tx = tx; }
 
     @Bean
-    RegistrarRecepcionUseCase registrarRecepcion(RecepcionGateway recepciones, ProveedorActivoGateway proveedores,
+    RegistrarRecepcionHandler registrarRecepcionHandler(RecepcionGateway recepciones, RecepcionConsultaGateway consultas,
+            ProveedorActivoGateway proveedores, EntradaKardexGateway kardex, BitacoraGateway bitacora) {
+        return new RegistrarRecepcionHandler(recepciones,consultas,proveedores,kardex,bitacora);
+    }
+
+    @Bean
+    CorregirRecepcionHandler corregirRecepcionHandler(RecepcionGateway recepciones, RecepcionConsultaGateway consultas,
+            ProveedorActivoGateway proveedores, EntradaKardexGateway kardex, BitacoraGateway bitacora) {
+        return new CorregirRecepcionHandler(recepciones,consultas,proveedores,kardex,bitacora);
+    }
+
+    @Bean
+    DecidirRecepcionHandler decidirRecepcionHandler(RecepcionGateway recepciones, RecepcionConsultaGateway consultas,
             EntradaKardexGateway kardex, BitacoraGateway bitacora) {
-        return tx.envolver(RegistrarRecepcionUseCase.class,
-            new RegistrarRecepcion(recepciones,proveedores,kardex,bitacora));
+        return new DecidirRecepcionHandler(recepciones,consultas,kardex,bitacora);
     }
 
     @Bean
-    DecidirRecepcionUseCase decidirRecepcion(RecepcionGateway recepciones, EntradaKardexGateway kardex,
-            BitacoraGateway bitacora) {
-        return tx.envolver(DecidirRecepcionUseCase.class, new DecidirRecepcion(recepciones,kardex,bitacora));
+    EliminarRecepcionHandler eliminarRecepcionHandler(RecepcionGateway recepciones, BitacoraGateway bitacora) {
+        return new EliminarRecepcionHandler(recepciones,bitacora);
     }
 
     @Bean
-    CorregirRecepcionUseCase corregirRecepcion(RecepcionGateway recepciones, ProveedorActivoGateway proveedores,
-            EntradaKardexGateway kardex, BitacoraGateway bitacora) {
-        return tx.envolver(CorregirRecepcionUseCase.class,
-            new CorregirRecepcion(recepciones,proveedores,kardex,bitacora));
+    ListarRecepcionesHandler listarRecepcionesHandler(RecepcionConsultaGateway consultas) {
+        return new ListarRecepcionesHandler(consultas);
     }
 
     @Bean
-    EliminarRecepcionUseCase eliminarRecepcion(RecepcionGateway recepciones, BitacoraGateway bitacora) {
-        return tx.envolver(EliminarRecepcionUseCase.class, new EliminarRecepcion(recepciones,bitacora));
+    ObtenerRecepcionHandler obtenerRecepcionHandler(RecepcionConsultaGateway consultas) {
+        return new ObtenerRecepcionHandler(consultas);
     }
 
     @Bean
-    ConsultarRecepcionUseCase consultarRecepcion(RecepcionGateway recepciones) {
-        return tx.envolver(ConsultarRecepcionUseCase.class, new ConsultarRecepcion(recepciones));
+    ListarKardexMaizHandler listarKardexMaizHandler(KardexMaizConsultaGateway kardex) {
+        return new ListarKardexMaizHandler(kardex);
+    }
+
+    @Bean
+    ConsultarStockMaizHandler consultarStockMaizHandler(KardexMaizConsultaGateway kardex) {
+        return new ConsultarStockMaizHandler(kardex);
+    }
+
+    @Bean
+    ExportarKardexMaizHandler exportarKardexMaizHandler(KardexMaizConsultaGateway kardex, BitacoraGateway bitacora) {
+        return new ExportarKardexMaizHandler(kardex,bitacora);
     }
 
     @Bean
@@ -76,16 +93,5 @@ public class Po01UseCaseConfig {
     @Bean
     GestionarProveedorUseCase gestionarProveedor(ProveedorGateway proveedores, BitacoraGateway bitacora) {
         return tx.envolver(GestionarProveedorUseCase.class, new GestionarProveedor(proveedores,bitacora));
-    }
-
-    @Bean
-    ConsultarKardexMaizUseCase consultarKardexMaiz(KardexMaizGateway kardex) {
-        return tx.envolver(ConsultarKardexMaizUseCase.class, new ConsultarKardexMaiz(kardex));
-    }
-
-    @Bean
-    ExportarKardexMaizUseCase exportarKardexMaiz(KardexMaizGateway kardex, BitacoraGateway bitacora) {
-        return tx.envolver(ExportarKardexMaizUseCase.class,
-            new ExportarKardexMaiz(new ConsultarKardexMaiz(kardex),bitacora));
     }
 }

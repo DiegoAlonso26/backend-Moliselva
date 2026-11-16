@@ -1,19 +1,21 @@
 package pe.edu.upeu.moliselva.application.recepcion.gateway;
 
-import java.time.LocalDate;
-import java.util.List;
 import java.util.Optional;
-import pe.edu.upeu.moliselva.domain.recepcion.EstadoRecepcion;
 import pe.edu.upeu.moliselva.domain.recepcion.Recepcion;
-import pe.edu.upeu.moliselva.domain.recepcion.RecepcionBloqueo;
-import pe.edu.upeu.moliselva.domain.recepcion.RecepcionDatos;
 
+/**
+ * Persistencia del agregado {@link Recepcion} para los commands (lado de escritura).
+ * Lo implementa infrastructure con JPA.
+ */
 public interface RecepcionGateway {
-    long insertar(RecepcionDatos datos, long idInsumo, EstadoRecepcion estado, long idRegistra);
-    Optional<Recepcion> buscar(long id);
-    List<Recepcion> listar(LocalDate fecha);
-    Optional<RecepcionBloqueo> bloquear(long id);
-    boolean decidir(long id, EstadoRecepcion estado, long usuarioId);
-    boolean corregir(long id, RecepcionDatos datos, EstadoRecepcion estado);
-    boolean eliminarEditable(long id);
+    /** Inserta una recepción nueva y devuelve su id. */
+    long agregar(Recepcion recepcion);
+
+    /** Carga la recepción bloqueando su fila hasta el fin de la transacción ({@code FOR UPDATE}). */
+    Optional<Recepcion> bloquear(long id);
+
+    /** Guarda los cambios de una recepción cargada con {@link #bloquear(long)}. */
+    void guardar(Recepcion recepcion);
+
+    void eliminar(Recepcion recepcion);
 }

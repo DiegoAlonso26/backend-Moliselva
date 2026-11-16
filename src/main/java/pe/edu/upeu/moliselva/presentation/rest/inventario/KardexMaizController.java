@@ -13,9 +13,11 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import pe.edu.upeu.moliselva.application.inventario.usecase.ConsultarKardexMaizUseCase;
-import pe.edu.upeu.moliselva.application.inventario.usecase.ExportarKardexMaizUseCase;
+import pe.edu.upeu.moliselva.application.inventario.kardex.exportar.ExportarKardexMaizCommand;
+import pe.edu.upeu.moliselva.application.inventario.kardex.listar.ListarKardexMaizQuery;
+import pe.edu.upeu.moliselva.application.inventario.kardex.stock.ConsultarStockMaizQuery;
 import pe.edu.upeu.moliselva.application.shared.ActorActual;
+import pe.edu.upeu.moliselva.application.shared.cqrs.Mediador;
 import pe.edu.upeu.moliselva.presentation.rest.inventario.dto.KardexMaizDto;
 import pe.edu.upeu.moliselva.presentation.rest.inventario.mapper.KardexMaizMapper;
 
@@ -24,24 +26,22 @@ import pe.edu.upeu.moliselva.presentation.rest.inventario.mapper.KardexMaizMappe
 @Tag(name = "Inventario de maiz")
 @SecurityRequirement(name = "bearerAuth")
 public class KardexMaizController {
-    private final ConsultarKardexMaizUseCase consultar;
-    private final ExportarKardexMaizUseCase exportar;
+    private final Mediador mediador;
     private final ActorActual actor;
 
-    public KardexMaizController(ConsultarKardexMaizUseCase consultar,
-            ExportarKardexMaizUseCase exportar, ActorActual actor) {
-        this.consultar=consultar; this.exportar=exportar; this.actor=actor;
+    public KardexMaizController(Mediador mediador, ActorActual actor) {
+        this.mediador=mediador; this.actor=actor;
     }
 
     @GetMapping("/kardex")
     @Operation(summary = "Consultar kardex")
     public List<KardexMaizDto.Kardex> kardex() {
-        return consultar.movimientos().stream().map(KardexMaizMapper::aRespuesta).toList();
+        return mediador.enviar(new ListarKardexMaizQuery()).stream().map(KardexMaizMapper::aRespuesta).toList();
     }
 
     @GetMapping("/stock")
     @Operation(summary = "Consultar stock actual")
-    public KardexMaizDto.Stock stock() { return KardexMaizMapper.aStock(consultar.stockKg()); }
+    public KardexMaizDto.Stock stock() { return KardexMaizMapper.aStock(mediador.enviar(new ConsultarStockMaizQuery())); }
 
     @GetMapping("/kardex/exportar")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR','JEFE_PLANTA','CONTADORA')")
@@ -51,6 +51,6 @@ public class KardexMaizController {
         return ResponseEntity.ok()
             .header(HttpHeaders.CONTENT_DISPOSITION,"attachment; filename=\""+filename+"\"")
             .contentType(MediaType.parseMediaType("text/csv;charset=UTF-8"))
-            .body(exportar.exportar(actor.obtener()));
+            .body(mediador.enviar(new ExportarKardexMaizCommand(actor.obtener())).csv());
     }
 }
