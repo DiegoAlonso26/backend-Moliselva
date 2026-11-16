@@ -12,8 +12,6 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
-import pe.edu.upeu.moliselva.produccion.application.ProduccionFailure;
-import pe.edu.upeu.moliselva.ventas.application.VentaFailure;
 
 @RestControllerAdvice
 public class ApiErrors {
@@ -22,23 +20,6 @@ public class ApiErrors {
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<Map<String,String>> known(ApiException ex) {
         return ResponseEntity.status(ex.status()).body(Map.of("codigo",ex.codigo(),"mensaje",ex.getMessage()));
-    }
-
-    @ExceptionHandler(ProduccionFailure.class)
-    public ResponseEntity<Map<String,String>> production(ProduccionFailure ex) {
-        return ResponseEntity.status(ex.status())
-            .body(Map.of("codigo",ex.codigo(),"mensaje",ex.getMessage()));
-    }
-
-    @ExceptionHandler(VentaFailure.class)
-    public ResponseEntity<Map<String,String>> sales(VentaFailure ex) {
-        HttpStatus status = switch (ex.type()) {
-            case DATOS_INVALIDOS -> HttpStatus.BAD_REQUEST;
-            case NO_ENCONTRADO -> HttpStatus.NOT_FOUND;
-            case CONFLICTO -> HttpStatus.CONFLICT;
-        };
-        return ResponseEntity.status(status)
-            .body(Map.of("codigo",ex.codigo(),"mensaje",ex.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

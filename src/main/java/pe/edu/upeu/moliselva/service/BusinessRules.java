@@ -3,7 +3,7 @@ package pe.edu.upeu.moliselva.service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import pe.edu.upeu.moliselva.domain.recepcion.RecepcionPolicy;
-import pe.edu.upeu.moliselva.produccion.domain.LotePolicy;
+import pe.edu.upeu.moliselva.domain.produccion.LotePolicy;
 
 public final class BusinessRules {
     private BusinessRules() {}

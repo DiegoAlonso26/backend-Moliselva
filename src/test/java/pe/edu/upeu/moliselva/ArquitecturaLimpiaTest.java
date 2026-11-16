@@ -8,10 +8,10 @@ import com.tngtech.archunit.lang.ArchRule;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 /**
- * Regla de dependencias de Clean Architecture para PO-01:
+ * Regla de dependencias de Clean Architecture (PO-01, producción y ventas):
  * presentation → application → domain y infrastructure → application → domain.
- * Los módulos legados (auth, comun, inventario, maestros, operaciones,
- * produccion, ventas, service) quedan fuera de las capas hasta la fase 2.
+ * Los módulos legados (auth, comun, inventario, maestros, operaciones, service)
+ * quedan fuera de las capas hasta la siguiente fase.
  */
 @AnalyzeClasses(packages = "pe.edu.upeu.moliselva", importOptions = ImportOption.DoNotIncludeTests.class)
 class ArquitecturaLimpiaTest {
@@ -22,7 +22,7 @@ class ArquitecturaLimpiaTest {
     private static final String INFRASTRUCTURE = RAIZ + ".infrastructure..";
     private static final String[] LEGADO = {
         RAIZ + ".auth..", RAIZ + ".comun..", RAIZ + ".inventario..", RAIZ + ".maestros..",
-        RAIZ + ".operaciones..", RAIZ + ".produccion..", RAIZ + ".ventas..", RAIZ + ".service.."
+        RAIZ + ".operaciones..", RAIZ + ".service.."
     };
     private static final String[] FRAMEWORKS = { "org.springframework..", "jakarta..", "io.swagger.." };
 
