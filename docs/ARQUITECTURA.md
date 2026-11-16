@@ -2,7 +2,7 @@
 
 Actualizada el 16 de noviembre de 2026. Alcance: **todo el backend**: PO-01 (recepción de maíz, proveedores y kardex de maíz), producción por lote, pedidos y despachos, autenticación y usuarios, clientes, insumos y productos, fórmulas, inventario general y bitácora.
 
-Los procesos con más reglas usan además **CQRS con mediador**, entidades con comportamiento, value objects y JPA para escribir (sección 3). Hoy lo tiene la recepción de maíz y su kardex; producción y ventas siguen el mismo camino en la etapa 2.
+El proceso principal, la recepción de maíz y su kardex (PO-01), usa además **CQRS con mediador**, entidades con comportamiento, value objects y JPA para escribir (sección 3). El resto de módulos usa casos de uso clásicos dentro de las mismas cuatro capas.
 
 ## 1. Por qué Clean Architecture
 
@@ -138,8 +138,7 @@ Es el mismo patrón que EF Core para escribir y Dapper para leer.
 | Módulo | Estilo |
 |---|---|
 | Recepción de maíz y kardex de maíz (PO-01) | CQRS + mediador + entidades + value objects + JPA/JDBC |
-| Producción por lote, pedidos y despachos | Etapa 2: mismo patrón |
-| Proveedores, clientes, insumos, productos, fórmulas, usuarios y roles, login, inventario general, bitácora | Simple, por decisión: interfaz de caso de uso + interactor + JDBC, envuelto por `Transacciones`. Son CRUD sin ciclo de estados y no necesitan agregados. También cumplen la regla de dependencias |
+| Producción por lote, pedidos y despachos, proveedores, clientes, insumos, productos, fórmulas, usuarios y roles, login, inventario general y bitácora | Casos de uso clásicos, por decisión: interfaz de caso de uso + interactor + JDBC, envuelto por `Transacciones`. Cumplen la misma regla de dependencias. Si un proceso crece en reglas, se puede pasar a CQRS siguiendo el modelo de recepción (sección 5.1) |
 
 ## 4. Recorrido de `POST /api/recepciones`
 
@@ -166,7 +165,7 @@ Es el mismo patrón que EF Core para escribir y Dapper para leer.
 
 ## 5. Cómo agregar un caso de uso
 
-### 5.1 En un módulo con CQRS (recepción y kardex; en la etapa 2, producción y ventas)
+### 5.1 En un módulo con CQRS (recepción y kardex de maíz)
 
 1. Crear la carpeta `application/<modulo>/<caso>/` con:
    - `XxxCommand` (o `XxxQuery`): un `record` con la entrada y el `Actor`, si importa quién lo hace;
@@ -201,7 +200,7 @@ La migración terminó el 16 de noviembre de 2026: no quedan módulos fuera de l
 
 El detalle está en `evidencias/clean-architecture-2026-11-16.md`.
 
-El 16 de noviembre, la etapa 1 de CQRS (recepción y kardex de maíz) pasó a Command/Query + Handler + Response con mediador, entidades y value objects, y JPA para escribir. Se verificó así:
+El 16 de noviembre, la recepción y el kardex de maíz pasaron a Command/Query + Handler + Response con mediador, entidades y value objects, y JPA para escribir. Se verificó así:
 - las mismas pruebas de antes y otras nuevas: 213 en total;
 - OpenAPI sin diferencias;
 - humos con base nueva: 51 y 116 OK;
