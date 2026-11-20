@@ -4,6 +4,7 @@ import pe.edu.upeu.moliselva.application.ventas.gateway.BitacoraVentaGateway;
 import pe.edu.upeu.moliselva.application.ventas.gateway.DespachoGateway;
 import pe.edu.upeu.moliselva.application.ventas.gateway.PedidoGateway;
 import pe.edu.upeu.moliselva.domain.ventas.DatosDespacho;
+import pe.edu.upeu.moliselva.domain.ventas.DatosDetalle;
 import pe.edu.upeu.moliselva.domain.ventas.Despacho;
 
 public class GestionarDespachos implements GestionarDespachosUseCase {
@@ -18,7 +19,15 @@ public class GestionarDespachos implements GestionarDespachosUseCase {
     public Despacho crear(DatosDespacho datos, long usuarioId) {
         var pedido=pedidos.bloquear(datos.idPedido()).orElseThrow(() -> VentaChecks.missing("PEDIDO"));
         VentaChecks.datosDespacho(datos,pedido);
+        var lineas=pedidos.listarDetalles(datos.idPedido());
+        VentaChecks.require(!lineas.isEmpty(),"PEDIDO_SIN_DETALLES",
+            "El pedido debe tener productos antes de preparar el despacho");
         var despacho=despachos.crear(datos,usuarioId);
+        // Snapshot del pedido dentro de la misma transaccion; el stock solo cambia al confirmar.
+        for (var linea : lineas) {
+            despachos.agregarDetalle(despacho.idDespacho(),new DatosDetalle(
+                linea.idProducto(),linea.cantidadSacos(),linea.cantidadKg()));
+        }
         bitacora.registrar(usuarioId,"CREAR_DESPACHO id="+despacho.idDespacho());
         return despacho;
     }
